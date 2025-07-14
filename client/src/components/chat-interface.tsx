@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChatMessage } from '@/types/mesh';
-import { Send, Search, Share2, Settings, Shield, Clock, Network, Mic, Plus } from 'lucide-react';
+import { Send, Search, Share2, Settings, Shield, Clock, Network, Mic, Plus, Bluetooth, Wifi, Radio } from 'lucide-react';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
@@ -57,8 +57,9 @@ export function ChatInterface({ messages, onSendMessage, isConnected }: ChatInte
   };
 
   const getConnectionTypeIcon = (message: ChatMessage) => {
-    if (message.meshHops > 0) return 'Mesh Relay';
-    return 'WebRTC';
+    if (message.meshHops > 0) return { text: 'Mesh Relay', icon: Radio };
+    if (message.fromUsername.includes('Bluetooth')) return { text: 'Bluetooth', icon: Bluetooth };
+    return { text: 'WebRTC', icon: Wifi };
   };
 
   return (
@@ -123,9 +124,19 @@ export function ChatInterface({ messages, onSendMessage, isConnected }: ChatInte
                     <span className="text-sm font-medium text-[var(--cyber-cyan)]">
                       {message.fromUsername}
                     </span>
-                    <span className="text-xs text-gray-400 font-mono">
-                      via {getConnectionTypeIcon(message)}
-                    </span>
+                    <div className="flex items-center space-x-1 text-xs text-gray-400 font-mono">
+                      <span>via</span>
+                      {(() => {
+                        const connectionInfo = getConnectionTypeIcon(message);
+                        const IconComponent = connectionInfo.icon;
+                        return (
+                          <>
+                            <IconComponent className="w-3 h-3" />
+                            <span>{connectionInfo.text}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
                   </>
                 )}
                 <span className="text-xs text-gray-400">
@@ -133,9 +144,19 @@ export function ChatInterface({ messages, onSendMessage, isConnected }: ChatInte
                 </span>
                 {message.fromUsername === 'You' && (
                   <>
-                    <span className="text-xs text-gray-400 font-mono">
-                      via {getConnectionTypeIcon(message)}
-                    </span>
+                    <div className="flex items-center space-x-1 text-xs text-gray-400 font-mono">
+                      <span>via</span>
+                      {(() => {
+                        const connectionInfo = getConnectionTypeIcon(message);
+                        const IconComponent = connectionInfo.icon;
+                        return (
+                          <>
+                            <IconComponent className="w-3 h-3" />
+                            <span>{connectionInfo.text}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
                     <span className="text-sm font-medium text-[var(--cyber-green)]">
                       {message.fromUsername}
                     </span>

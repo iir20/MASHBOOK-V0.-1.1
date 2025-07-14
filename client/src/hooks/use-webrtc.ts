@@ -129,11 +129,11 @@ export function useWebRTC(userId: string) {
 
   const handleAnswer = async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
     const peerConnection = peers.get(fromUserId);
-    if (peerConnection) {
+    if (peerConnection && peerConnection.signalingState !== 'stable') {
       try {
         await peerConnection.setRemoteDescription(answer);
       } catch (error) {
-        console.error('Failed to handle answer:', error);
+        console.error('Failed to handle answer:', error, 'Signaling state:', peerConnection.signalingState);
       }
     }
   };
@@ -157,30 +157,36 @@ export function useWebRTC(userId: string) {
 
   // Handle WebSocket messages
   useEffect(() => {
+    const processedMessages = new Set<string>();
+    
     messages.forEach((message: WebRTCSignal) => {
+      const messageId = `${message.type}_${message.fromUserId}_${Date.now()}`;
+      if (processedMessages.has(messageId)) return;
+      processedMessages.add(messageId);
+      
       switch (message.type) {
         case 'offer':
-          if (message.fromUserId && message.data) {
+          if (message.fromUserId && message.data && message.fromUserId !== userId) {
             handleOffer(message.fromUserId, message.data);
           }
           break;
         case 'answer':
-          if (message.fromUserId && message.data) {
+          if (message.fromUserId && message.data && message.fromUserId !== userId) {
             handleAnswer(message.fromUserId, message.data);
           }
           break;
         case 'ice-candidate':
-          if (message.fromUserId && message.data) {
+          if (message.fromUserId && message.data && message.fromUserId !== userId) {
             handleIceCandidate(message.fromUserId, message.data);
           }
           break;
         case 'user-joined':
-          if (message.userId) {
-            createOffer(message.userId);
+          if (message.userId && message.userId !== userId) {
+            setTimeout(() => createOffer(message.userId!), 1000);
           }
           break;
         case 'user-left':
-          if (message.userId) {
+          if (message.userId && message.userId !== userId) {
             const peerConnection = peers.get(message.userId);
             if (peerConnection) {
               peerConnection.close();
@@ -194,7 +200,7 @@ export function useWebRTC(userId: string) {
           break;
       }
     });
-  }, [messages]);
+  }, [messages, userId]);
 
   return {
     peers,

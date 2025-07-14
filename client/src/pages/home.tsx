@@ -5,6 +5,7 @@ import { ChatInterface } from '@/components/chat-interface';
 import { RightPanel } from '@/components/right-panel';
 import { useWebRTC } from '@/hooks/use-webrtc';
 import { useEncryption } from '@/hooks/use-encryption';
+import { useBluetoothMesh } from '@/hooks/use-bluetooth-mesh';
 import { ChatMessage } from '@/types/mesh';
 
 export default function Home() {
@@ -14,6 +15,11 @@ export default function Home() {
   
   const { joinRoom, sendP2PMessage, connectedPeers } = useWebRTC(currentUserId);
   const { encryptMessage, decryptMessage, isReady } = useEncryption();
+  const { 
+    sendMessage: sendBluetoothMessage, 
+    broadcastMessage: broadcastBluetoothMessage,
+    isInitialized: isBluetoothInitialized 
+  } = useBluetoothMesh(currentUserId);
 
   useEffect(() => {
     if (isReady) {
@@ -21,6 +27,12 @@ export default function Home() {
       setIsConnected(true);
     }
   }, [isReady, joinRoom]);
+
+  useEffect(() => {
+    if (isBluetoothInitialized) {
+      console.log('Bluetooth mesh initialized');
+    }
+  }, [isBluetoothInitialized]);
 
   const handleSendMessage = async (content: string) => {
     try {
@@ -47,6 +59,15 @@ export default function Home() {
           content: encryptedContent
         }
       });
+
+      // Also broadcast via Bluetooth mesh if available
+      if (isBluetoothInitialized) {
+        try {
+          await broadcastBluetoothMessage(content);
+        } catch (error) {
+          console.error('Failed to send Bluetooth message:', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -91,13 +112,19 @@ export default function Home() {
   }, [currentUserId]);
 
   return (
-    <div className="h-screen flex bg-[var(--cyber-dark)] text-white overflow-hidden">
+    <div className="h-screen flex bg-[var(--cyber-dark)] text-white overflow-hidden relative">
+      {/* Animated background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-[var(--cyber-cyan)]/5 via-transparent to-transparent animate-pulse"></div>
+        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-[var(--cyber-magenta)]/5 via-transparent to-transparent animate-pulse"></div>
+      </div>
+      
       <Sidebar />
       <NetworkExplorer connectedPeers={connectedPeers} />
       <ChatInterface 
         messages={messages}
         onSendMessage={handleSendMessage}
-        isConnected={isConnected}
+        isConnected={isConnected || isBluetoothInitialized}
       />
       <RightPanel />
     </div>

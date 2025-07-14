@@ -24,14 +24,23 @@
   --ring: hsl(240, 4.9%, 83.9%);
   --radius: 0.5rem;
   
-  /* Custom cyber colors */
-  --cyber-dark: hsl(240, 10%, 3.9%);
-  --cyber-gray: hsl(240, 3.7%, 15.9%);
+  /* Enhanced cyber colors */
+  --cyber-dark: hsl(240, 15%, 2%);
+  --cyber-dark-alt: hsl(240, 12%, 6%);
+  --cyber-gray: hsl(240, 8%, 12%);
+  --cyber-gray-light: hsl(240, 6%, 18%);
   --cyber-cyan: hsl(180, 100%, 50%);
+  --cyber-cyan-dim: hsl(180, 80%, 40%);
   --cyber-magenta: hsl(300, 100%, 50%);
+  --cyber-magenta-dim: hsl(300, 80%, 40%);
   --cyber-green: hsl(120, 100%, 50%);
+  --cyber-green-dim: hsl(120, 80%, 40%);
   --cyber-red: hsl(0, 100%, 50%);
+  --cyber-red-dim: hsl(0, 80%, 40%);
   --cyber-yellow: hsl(45, 100%, 50%);
+  --cyber-yellow-dim: hsl(45, 80%, 40%);
+  --cyber-blue: hsl(210, 100%, 50%);
+  --cyber-purple: hsl(270, 100%, 50%);
 }
 
 @layer base {
@@ -41,16 +50,55 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    background-color: var(--cyber-dark);
+    background: linear-gradient(135deg, var(--cyber-dark) 0%, var(--cyber-dark-alt) 100%);
     color: var(--foreground);
+    overflow: hidden;
+  }
+  
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cyber-cyan) var(--cyber-gray);
+  }
+  
+  *::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: var(--cyber-gray);
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: var(--cyber-cyan);
+    border-radius: 4px;
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--cyber-cyan-dim);
   }
 }
 
 @layer components {
   .glass-morphism {
-    background: rgba(26, 26, 26, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    box-shadow: 0 4px 32px rgba(0, 255, 255, 0.1);
+  }
+  
+  .glass-morphism-alt {
+    background: rgba(40, 40, 40, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 0, 255, 0.15);
+    box-shadow: 0 4px 24px rgba(255, 0, 255, 0.08);
+  }
+  
+  .cyber-gradient {
+    background: linear-gradient(135deg, var(--cyber-cyan) 0%, var(--cyber-magenta) 100%);
+  }
+  
+  .cyber-gradient-alt {
+    background: linear-gradient(135deg, var(--cyber-green) 0%, var(--cyber-blue) 100%);
   }
   
   .network-node {
@@ -96,15 +144,21 @@
   
   .terminal-input {
     background: var(--cyber-gray);
-    border: 1px solid #333;
+    border: 1px solid rgba(0, 255, 255, 0.3);
     color: var(--cyber-cyan);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    transition: all 0.3s ease;
   }
   
   .terminal-input:focus {
     outline: none;
     border-color: var(--cyber-cyan);
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4), inset 0 0 10px rgba(0, 255, 255, 0.1);
+    background: rgba(0, 255, 255, 0.05);
+  }
+  
+  .terminal-input::placeholder {
+    color: rgba(0, 255, 255, 0.5);
   }
   
   .neon-button {
@@ -112,12 +166,34 @@
     border: 2px solid var(--cyber-cyan);
     color: var(--cyber-cyan);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .neon-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  .neon-button:hover::before {
+    left: 100%;
   }
   
   .neon-button:hover {
     background: var(--cyber-cyan);
     color: var(--cyber-dark);
-    box-shadow: 0 0 20px var(--cyber-cyan);
+    box-shadow: 0 0 25px var(--cyber-cyan), 0 0 50px rgba(0, 255, 255, 0.3);
+    transform: translateY(-2px);
+  }
+  
+  .neon-button:active {
+    transform: translateY(0);
   }
   
   .status-indicator {
@@ -155,6 +231,22 @@
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+  
+  .animate-matrix-rain {
+    animation: matrix-rain 10s linear infinite;
+  }
+  
+  .animate-data-flow {
+    animation: data-flow 3s linear infinite;
+  }
+  
+  .animate-cyber-flicker {
+    animation: cyber-flicker 2s ease-in-out infinite;
+  }
+  
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
 }
 
 @keyframes radar-sweep {
@@ -170,4 +262,20 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+@keyframes matrix-rain {
+  0% { transform: translateY(-100vh); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes data-flow {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes cyber-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+  75% { opacity: 0.9; }
 }

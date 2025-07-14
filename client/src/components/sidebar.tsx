@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Network, Images, Wallet, Wifi } from 'lucide-react';
+import { MessageCircle, Network, Images, Wallet, Wifi, Bluetooth, Activity } from 'lucide-react';
 
 export function Sidebar() {
   const [activeTab, setActiveTab] = useState('chat');
@@ -10,13 +10,14 @@ export function Sidebar() {
     { id: 'network', icon: Network, color: 'text-gray-400' },
     { id: 'stories', icon: Images, color: 'text-gray-400' },
     { id: 'wallet', icon: Wallet, color: 'text-gray-400' },
+    { id: 'bluetooth', icon: Bluetooth, color: 'text-gray-400' },
   ];
 
   return (
     <div className="w-16 bg-[var(--cyber-gray)] border-r border-gray-800 flex flex-col items-center py-4 space-y-4">
       {/* App Logo */}
-      <div className="w-10 h-10 bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)] rounded-lg flex items-center justify-center text-[var(--cyber-dark)] font-bold text-xl">
-        M
+      <div className="w-10 h-10 cyber-gradient rounded-lg flex items-center justify-center text-[var(--cyber-dark)] font-bold text-xl shadow-lg group cursor-pointer">
+        <span className="group-hover:scale-110 transition-transform">M</span>
       </div>
       
       {/* Navigation Icons */}
@@ -40,8 +41,11 @@ export function Sidebar() {
       
       {/* Status Indicator */}
       <div className="flex-1 flex items-end">
-        <div className="w-10 h-10 rounded-lg bg-[var(--cyber-green)]/20 text-[var(--cyber-green)] flex items-center justify-center">
-          <Wifi className="w-5 h-5 animate-pulse" />
+        <div className="w-10 h-10 rounded-lg bg-[var(--cyber-green)]/20 text-[var(--cyber-green)] flex items-center justify-center group">
+          <div className="relative">
+            <Activity className="w-5 h-5 animate-pulse" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--cyber-green)] rounded-full animate-ping"></div>
+          </div>
         </div>
       </div>
     </div>
