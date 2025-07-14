@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(180, 100%, 50%);
+  --primary-foreground: hsl(240, 10%, 3.9%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+  
+  /* Custom cyber colors */
+  --cyber-dark: hsl(240, 10%, 3.9%);
+  --cyber-gray: hsl(240, 3.7%, 15.9%);
+  --cyber-cyan: hsl(180, 100%, 50%);
+  --cyber-magenta: hsl(300, 100%, 50%);
+  --cyber-green: hsl(120, 100%, 50%);
+  --cyber-red: hsl(0, 100%, 50%);
+  --cyber-yellow: hsl(45, 100%, 50%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-color: var(--cyber-dark);
+    color: var(--foreground);
+  }
+}
+
+@layer components {
+  .glass-morphism {
+    background: rgba(26, 26, 26, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .network-node {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cyber-cyan);
+    box-shadow: 0 0 10px var(--cyber-cyan);
+    animation: pulse 2s infinite;
+  }
+  
+  .radar-line {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 100px;
+    background: linear-gradient(to top, transparent, var(--cyber-cyan));
+    transform-origin: bottom;
+    animation: radar-sweep 4s linear infinite;
+  }
+  
+  .message-bubble {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .message-bubble::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+  }
+  
+  .message-bubble:hover::before {
+    left: 100%;
+  }
+  
+  .terminal-input {
+    background: var(--cyber-gray);
+    border: 1px solid #333;
+    color: var(--cyber-cyan);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  .terminal-input:focus {
+    outline: none;
+    border-color: var(--cyber-cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  }
+  
+  .neon-button {
+    background: transparent;
+    border: 2px solid var(--cyber-cyan);
+    color: var(--cyber-cyan);
+    transition: all 0.3s ease;
+  }
+  
+  .neon-button:hover {
+    background: var(--cyber-cyan);
+    color: var(--cyber-dark);
+    box-shadow: 0 0 20px var(--cyber-cyan);
+  }
+  
+  .status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .status-online { 
+    background: var(--cyber-green); 
+    box-shadow: 0 0 10px var(--cyber-green); 
+  }
+  
+  .status-offline { 
+    background: var(--cyber-red); 
+  }
+  
+  .status-connecting { 
+    background: var(--cyber-yellow); 
+    animation: pulse 1s infinite; 
+  }
+}
+
+@layer utilities {
+  .animate-radar-sweep {
+    animation: radar-sweep 4s linear infinite;
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes glow {
+  0% { box-shadow: 0 0 5px var(--cyber-cyan); }
+  100% { box-shadow: 0 0 20px var(--cyber-cyan), 0 0 30px var(--cyber-cyan); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
