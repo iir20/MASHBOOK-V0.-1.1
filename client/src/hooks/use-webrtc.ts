@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useWebSocket } from './use-websocket';
 import { WebRTCSignal } from '@/types/mesh';
 
@@ -129,7 +129,7 @@ export function useWebRTC(userId: string) {
 
   const handleAnswer = async (fromUserId: string, answer: RTCSessionDescriptionInit) => {
     const peerConnection = peers.get(fromUserId);
-    if (peerConnection && peerConnection.signalingState !== 'stable') {
+    if (peerConnection && peerConnection.signalingState === 'have-local-offer') {
       try {
         await peerConnection.setRemoteDescription(answer);
       } catch (error) {
@@ -140,7 +140,7 @@ export function useWebRTC(userId: string) {
 
   const handleIceCandidate = async (fromUserId: string, candidate: RTCIceCandidateInit) => {
     const peerConnection = peers.get(fromUserId);
-    if (peerConnection) {
+    if (peerConnection && peerConnection.remoteDescription) {
       try {
         await peerConnection.addIceCandidate(candidate);
       } catch (error) {
@@ -149,58 +149,55 @@ export function useWebRTC(userId: string) {
     }
   };
 
-  const joinRoom = () => {
+  const joinRoom = useCallback(() => {
     sendWebSocketMessage({
       type: 'join-room'
     });
-  };
+  }, [sendWebSocketMessage]);
 
   // Handle WebSocket messages
   useEffect(() => {
-    const processedMessages = new Set<string>();
+    if (messages.length === 0) return;
     
-    messages.forEach((message: WebRTCSignal) => {
-      const messageId = `${message.type}_${message.fromUserId}_${Date.now()}`;
-      if (processedMessages.has(messageId)) return;
-      processedMessages.add(messageId);
-      
-      switch (message.type) {
-        case 'offer':
-          if (message.fromUserId && message.data && message.fromUserId !== userId) {
-            handleOffer(message.fromUserId, message.data);
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage) return;
+    
+    switch (latestMessage.type) {
+      case 'offer':
+        if (latestMessage.fromUserId && latestMessage.data && latestMessage.fromUserId !== userId) {
+          handleOffer(latestMessage.fromUserId, latestMessage.data);
+        }
+        break;
+      case 'answer':
+        if (latestMessage.fromUserId && latestMessage.data && latestMessage.fromUserId !== userId) {
+          handleAnswer(latestMessage.fromUserId, latestMessage.data);
+        }
+        break;
+      case 'ice-candidate':
+        if (latestMessage.fromUserId && latestMessage.data && latestMessage.fromUserId !== userId) {
+          handleIceCandidate(latestMessage.fromUserId, latestMessage.data);
+        }
+        break;
+      case 'user-joined':
+        if (latestMessage.userId && latestMessage.userId !== userId) {
+          setTimeout(() => createOffer(latestMessage.userId!), 1000);
+        }
+        break;
+      case 'user-left':
+        if (latestMessage.userId && latestMessage.userId !== userId) {
+          const peerConnection = peers.get(latestMessage.userId);
+          if (peerConnection) {
+            peerConnection.close();
+            setPeers(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(latestMessage.userId!);
+              return newMap;
+            });
           }
-          break;
-        case 'answer':
-          if (message.fromUserId && message.data && message.fromUserId !== userId) {
-            handleAnswer(message.fromUserId, message.data);
-          }
-          break;
-        case 'ice-candidate':
-          if (message.fromUserId && message.data && message.fromUserId !== userId) {
-            handleIceCandidate(message.fromUserId, message.data);
-          }
-          break;
-        case 'user-joined':
-          if (message.userId && message.userId !== userId) {
-            setTimeout(() => createOffer(message.userId!), 1000);
-          }
-          break;
-        case 'user-left':
-          if (message.userId && message.userId !== userId) {
-            const peerConnection = peers.get(message.userId);
-            if (peerConnection) {
-              peerConnection.close();
-              setPeers(prev => {
-                const newMap = new Map(prev);
-                newMap.delete(message.userId!);
-                return newMap;
-              });
-            }
-          }
-          break;
-      }
-    });
-  }, [messages, userId]);
+        }
+        break;
+    }
+  }, [messages.length, userId]);
 
   return {
     peers,

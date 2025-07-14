@@ -3,9 +3,8 @@ import { Sidebar } from '@/components/sidebar';
 import { NetworkExplorer } from '@/components/network-explorer';
 import { ChatInterface } from '@/components/chat-interface';
 import { RightPanel } from '@/components/right-panel';
-import { useWebRTC } from '@/hooks/use-webrtc';
+import { useSimpleWebRTC } from '@/hooks/use-simple-webrtc';
 import { useEncryption } from '@/hooks/use-encryption';
-import { useBluetoothMesh } from '@/hooks/use-bluetooth-mesh';
 import { ChatMessage } from '@/types/mesh';
 
 export default function Home() {
@@ -13,26 +12,14 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   
-  const { joinRoom, sendP2PMessage, connectedPeers } = useWebRTC(currentUserId);
+  const { sendP2PMessage, connectedPeers, isConnected: isWebRTCConnected } = useSimpleWebRTC(currentUserId);
   const { encryptMessage, decryptMessage, isReady } = useEncryption();
-  const { 
-    sendMessage: sendBluetoothMessage, 
-    broadcastMessage: broadcastBluetoothMessage,
-    isInitialized: isBluetoothInitialized 
-  } = useBluetoothMesh(currentUserId);
 
   useEffect(() => {
-    if (isReady) {
-      joinRoom();
+    if (isReady && isWebRTCConnected) {
       setIsConnected(true);
     }
-  }, [isReady, joinRoom]);
-
-  useEffect(() => {
-    if (isBluetoothInitialized) {
-      console.log('Bluetooth mesh initialized');
-    }
-  }, [isBluetoothInitialized]);
+  }, [isReady, isWebRTCConnected]);
 
   const handleSendMessage = async (content: string) => {
     try {
@@ -60,14 +47,7 @@ export default function Home() {
         }
       });
 
-      // Also broadcast via Bluetooth mesh if available
-      if (isBluetoothInitialized) {
-        try {
-          await broadcastBluetoothMessage(content);
-        } catch (error) {
-          console.error('Failed to send Bluetooth message:', error);
-        }
-      }
+      // Future: Add Bluetooth mesh integration here
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -124,7 +104,7 @@ export default function Home() {
       <ChatInterface 
         messages={messages}
         onSendMessage={handleSendMessage}
-        isConnected={isConnected || isBluetoothInitialized}
+        isConnected={isConnected}
       />
       <RightPanel />
     </div>

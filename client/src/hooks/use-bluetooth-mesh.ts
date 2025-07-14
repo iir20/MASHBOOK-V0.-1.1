@@ -47,12 +47,10 @@ export function useBluetoothMesh(nodeId: string) {
             }
             return [...prev, device];
           });
-          updateNetworkStats();
         });
 
         meshManager.on('deviceDisconnected', (device: BluetoothMeshDevice) => {
           setConnectedDevices(prev => prev.filter(d => d.id !== device.id));
-          updateNetworkStats();
         });
 
         meshManager.on('messageSent', (message: MeshMessage, deviceId: string) => {
@@ -69,17 +67,15 @@ export function useBluetoothMesh(nodeId: string) {
       }
     };
 
-    const updateNetworkStats = () => {
+    initializeMesh();
+    
+    // Update stats periodically
+    const statsInterval = setInterval(() => {
       if (meshManagerRef.current) {
         const stats = meshManagerRef.current.getNetworkStats();
         setNetworkStats(stats);
       }
-    };
-
-    initializeMesh();
-    
-    // Update stats periodically
-    const statsInterval = setInterval(updateNetworkStats, 5000);
+    }, 5000);
 
     return () => {
       clearInterval(statsInterval);

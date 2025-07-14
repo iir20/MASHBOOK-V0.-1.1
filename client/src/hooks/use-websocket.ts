@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { WebRTCSignal } from '@/types/mesh';
 
 export function useWebSocket(userId: string) {
@@ -57,11 +57,11 @@ export function useWebSocket(userId: string) {
     };
   }, [userId]);
 
-  const sendMessage = (message: WebRTCSignal) => {
+  const sendMessage = useCallback((message: WebRTCSignal) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));
     }
-  };
+  }, [socket]);
 
   return {
     socket,
