@@ -54,32 +54,40 @@ export function AuthManager({ onUserAuthenticated }: AuthManagerProps) {
 
     const id = generateDeviceId();
     setDeviceId(id);
-    checkExistingUser(id);
-  }, []);
-
-  // Check if user exists
-  const { refetch: checkUser } = useQuery({
-    queryKey: ['/api/users/device', deviceId],
-    queryFn: async () => {
-      const response = await fetch(`/api/users/device/${deviceId}`);
-      if (response.ok) {
-        return response.json();
+    
+    // Add a small delay to ensure the component is fully mounted
+    setTimeout(() => {
+      checkExistingUser(id);
+    }, 100);
+    
+    // Add a fallback timeout to prevent being stuck indefinitely
+    setTimeout(() => {
+      if (step === 'checking') {
+        console.log('Authentication timeout, forcing registration step');
+        setStep('register');
       }
-      if (response.status === 404) {
-        throw new Error('User not found');
-      }
-      throw new Error('Failed to check user');
-    },
-    enabled: false,
-  });
+    }, 3000);
+  }, [step]);
 
   const checkExistingUser = async (id: string) => {
+    console.log('Checking existing user with device ID:', id);
     try {
-      const result = await checkUser();
-      if (result.data) {
-        onUserAuthenticated(result.data, id);
+      const response = await fetch(`/api/users/device/${id}`);
+      console.log('User check response:', response.status);
+      
+      if (response.ok) {
+        const user = await response.json();
+        console.log('User found:', user);
+        onUserAuthenticated(user, id);
+      } else if (response.status === 404) {
+        // User not found, show registration
+        console.log('User not found, showing registration');
+        setStep('register');
+      } else {
+        throw new Error('Failed to check user');
       }
     } catch (error) {
+      console.error('Error checking user:', error);
       setStep('register');
     }
   };
