@@ -59,46 +59,62 @@ export default function Home() {
           activeTab={activeTab} 
           onTabChange={setActiveTab}
           isConnected={isConnected}
-          connectionCount={0}
+          connectionCount={meshHook?.networkMetrics?.networkStats?.totalNodes || 0}
         />
         
         {/* Main Content */}
-        <main className="flex-1 flex">
+        <main className="flex-1 flex lg:ml-0 ml-0">
           {activeTab === 'chat' && (
-            <div className="flex-1 flex flex-col lg:flex-row">
-              <div className="flex-1 min-h-0">
+            <div className="flex-1 flex flex-col lg:flex-row relative">
+              <div className="flex-1 min-h-0 lg:min-h-0">
                 <ModernChat
                   currentUser={currentUser}
                   selectedUserId={selectedUserId > 0 ? selectedUserId : undefined}
                   onUserSelect={setSelectedUserId}
+                  className="h-full"
                 />
               </div>
               
               {/* Mobile-friendly right panel */}
               <div className={`
                 lg:w-80 w-full lg:border-l border-[var(--cyber-cyan)]/30 
-                ${selectedUserId > 0 ? 'hidden lg:block' : 'block lg:block'}
-                flex flex-col
+                ${selectedUserId > 0 ? 'hidden lg:flex' : 'flex lg:flex'}
+                flex-col
+                lg:h-full h-auto
+                ${selectedUserId > 0 ? 'lg:relative absolute inset-0 z-20 bg-[var(--cyber-dark)]' : ''}
               `}>
                 {/* User Profile Section */}
-                <div className="p-4 border-b border-[var(--cyber-cyan)]/30">
+                <div className="p-4 border-b border-[var(--cyber-cyan)]/30 bg-[var(--cyber-dark)]/50 backdrop-blur-sm">
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-10 h-10 bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)] rounded-full flex items-center justify-center cursor-pointer"
+                      className="w-10 h-10 bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)] rounded-full flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
                       onClick={() => setShowProfile(!showProfile)}
                     >
                       <span className="text-white font-bold">{currentUser.username.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium truncate">{currentUser.username}</p>
-                      <p className="text-xs text-gray-400">Connected</p>
+                      <p className="text-xs text-[var(--cyber-cyan)]">
+                        {isConnected ? 'Connected' : 'Connecting...'}
+                      </p>
                     </div>
+                    {/* Mobile back button when chat is selected */}
+                    {selectedUserId > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedUserId(0)}
+                        className="lg:hidden text-gray-400 hover:text-white"
+                      >
+                        Back
+                      </Button>
+                    )}
                   </div>
                 </div>
 
                 {/* Profile Modal */}
                 {showProfile && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                     <UserProfile
                       userId={currentUser.id}
                       deviceId={deviceId}
@@ -108,10 +124,11 @@ export default function Home() {
                 )}
 
                 {/* Scanner Section */}
-                <div className="flex-1 min-h-0 p-4">
+                <div className="flex-1 min-h-0 p-4 overflow-hidden">
                   <EnhancedScanner
                     onUserDetected={handleUserDetected}
                     onScanStateChange={setIsScanning}
+                    className="h-full"
                   />
                 </div>
               </div>
@@ -119,20 +136,47 @@ export default function Home() {
           )}
           
           {activeTab === 'analytics' && (
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-4 lg:p-6">
               <NetworkAnalyticsDashboard />
             </div>
           )}
           
           {activeTab === 'transfers' && (
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-4 lg:p-6">
               <FileTransferManager />
             </div>
           )}
           
           {activeTab === 'security' && (
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-4 lg:p-6">
               <SecurityMonitor />
+            </div>
+          )}
+          
+          {activeTab === 'network' && (
+            <div className="flex-1 p-4 lg:p-6">
+              <div className="text-center space-y-4">
+                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Network Explorer</h2>
+                <p className="text-gray-400">Mesh network topology visualization coming soon...</p>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'stories' && (
+            <div className="flex-1 p-4 lg:p-6">
+              <div className="text-center space-y-4">
+                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Stories</h2>
+                <p className="text-gray-400">Ephemeral content sharing coming soon...</p>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'bluetooth' && (
+            <div className="flex-1 p-4 lg:p-6">
+              <div className="text-center space-y-4">
+                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Bluetooth Discovery</h2>
+                <p className="text-gray-400">Device pairing and mesh extension coming soon...</p>
+              </div>
             </div>
           )}
         </main>
