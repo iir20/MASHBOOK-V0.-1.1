@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Network, Images, Wallet, Wifi, Bluetooth, Activity } from 'lucide-react';
+import { MessageCircle, Network, Images, Wallet, Wifi, Bluetooth, Activity, Shield, FileText, BarChart3, AlertTriangle } from 'lucide-react';
 
-export function Sidebar() {
-  const [activeTab, setActiveTab] = useState('chat');
+interface SidebarProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
 
+export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const tabs = [
-    { id: 'chat', icon: MessageCircle, color: 'text-[var(--cyber-cyan)]' },
-    { id: 'network', icon: Network, color: 'text-gray-400' },
-    { id: 'stories', icon: Images, color: 'text-gray-400' },
-    { id: 'wallet', icon: Wallet, color: 'text-gray-400' },
-    { id: 'bluetooth', icon: Bluetooth, color: 'text-gray-400' },
+    { id: 'chat', icon: MessageCircle, color: 'text-[var(--cyber-cyan)]', label: 'Chat' },
+    { id: 'network', icon: Network, color: 'text-gray-400', label: 'Network' },
+    { id: 'analytics', icon: BarChart3, color: 'text-gray-400', label: 'Analytics' },
+    { id: 'transfers', icon: FileText, color: 'text-gray-400', label: 'Transfers' },
+    { id: 'security', icon: Shield, color: 'text-gray-400', label: 'Security' },
+    { id: 'stories', icon: Images, color: 'text-gray-400', label: 'Stories' },
+    { id: 'bluetooth', icon: Bluetooth, color: 'text-gray-400', label: 'Bluetooth' },
   ];
 
   return (
