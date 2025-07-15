@@ -147,9 +147,12 @@ export function useAdvancedMesh(nodeId: string) {
     
     // Prevent rapid reconnections
     const now = Date.now();
-    if (now - connectionRef.current.lastConnectionTime < 2000) {
+    if (now - connectionRef.current.lastConnectionTime < 5000) {
       return;
     }
+    
+    // Mark connection attempt
+    connectionRef.current.lastConnectionTime = now;
     
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -192,15 +195,21 @@ export function useAdvancedMesh(nodeId: string) {
       
       ws.onclose = () => {
         console.log('Advanced mesh connection closed');
-        setConnection(prev => ({
-          ...prev,
+        const updatedConnection = {
+          ...connectionRef.current,
           ws: null,
           isConnected: false,
-          connectionQuality: 'critical'
-        }));
+          connectionQuality: 'critical' as const
+        };
+        setConnection(updatedConnection);
+        connectionRef.current = updatedConnection;
         
         clearPingInterval();
-        scheduleReconnect();
+        
+        // Only schedule reconnect if we're not already trying
+        if (!reconnectTimeoutRef.current) {
+          scheduleReconnect();
+        }
       };
       
       ws.onerror = (error) => {
@@ -318,10 +327,11 @@ export function useAdvancedMesh(nodeId: string) {
     }
     
     const attempts = connectionRef.current.connectionAttempts;
-    const delay = Math.min(2000 * Math.pow(2, attempts), 30000); // Start at 2 seconds, max 30 seconds
+    const delay = Math.min(5000 * Math.pow(1.5, attempts), 30000); // Start at 5 seconds, max 30 seconds
     
     reconnectTimeoutRef.current = setTimeout(() => {
       if (!connectionRef.current.isConnected) {
+        reconnectTimeoutRef.current = null;
         connect();
       }
     }, delay);

@@ -6,9 +6,12 @@ import { RightPanel } from '@/components/right-panel';
 import { NetworkAnalyticsDashboard } from '@/components/network-analytics-dashboard';
 import { FileTransferManager } from '@/components/file-transfer-manager';
 import { SecurityMonitor } from '@/components/security-monitor';
+import { EnhancedRadarView } from '@/components/enhanced-radar-view';
+import { RealTimeChat } from '@/components/real-time-chat';
 import { useSimpleWebRTC } from '@/hooks/use-simple-webrtc';
 import { useEncryption } from '@/hooks/use-encryption';
 import { useAdvancedMesh } from '@/hooks/use-advanced-mesh';
+import { useOfflineStorage } from '@/hooks/use-offline-storage';
 import { ChatMessage } from '@/types/mesh';
 
 export default function Home() {
@@ -16,6 +19,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   
   const { sendP2PMessage, connectedPeers, isConnected: isWebRTCConnected } = useSimpleWebRTC(currentUserId);
   const { encryptMessage, decryptMessage, isReady } = useEncryption();
@@ -26,6 +31,14 @@ export default function Home() {
     sendMeshMessage,
     messages: meshMessages
   } = useAdvancedMesh(currentUserId);
+  
+  const {
+    addMessage,
+    addOrUpdateUser,
+    isOfflineMode,
+    users: offlineUsers,
+    syncPendingData
+  } = useOfflineStorage();
 
   useEffect(() => {
     if (isReady && (isWebRTCConnected || isMeshConnected)) {
@@ -49,6 +62,13 @@ export default function Home() {
       setMessages(prev => [...prev, ...formattedMessages]);
     }
   }, [meshMessages, currentUserId]);
+  
+  // Sync pending data when connection is restored
+  useEffect(() => {
+    if (!isOfflineMode && isMeshConnected) {
+      syncPendingData();
+    }
+  }, [isOfflineMode, isMeshConnected, syncPendingData]);
 
   const handleSendMessage = async (content: string) => {
     try {
@@ -67,18 +87,28 @@ export default function Home() {
 
       setMessages(prev => [...prev, message]);
       
-      // Send via WebRTC
-      sendP2PMessage({
-        type: 'message',
-        message: {
-          ...message,
-          content: encryptedContent
-        }
+      // Store message offline-first
+      addMessage({
+        content,
+        fromUserId: currentUserId,
+        toUserId: selectedUser || undefined,
+        isEncrypted: true
       });
+      
+      // Send via WebRTC if online
+      if (!isOfflineMode) {
+        sendP2PMessage({
+          type: 'message',
+          message: {
+            ...message,
+            content: encryptedContent
+          }
+        });
 
-      // Send via mesh network if available
-      if (isMeshConnected && connectedPeers.length > 0) {
-        sendMeshMessage(connectedPeers[0], encryptedContent);
+        // Send via mesh network if available
+        if (isMeshConnected && connectedPeers.length > 0) {
+          sendMeshMessage(connectedPeers[0], encryptedContent);
+        }
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -128,13 +158,16 @@ export default function Home() {
       case 'chat':
         return (
           <div className="flex-1 flex">
-            <NetworkExplorer connectedPeers={connectedPeers} />
-            <ChatInterface 
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isConnected={isConnected}
-              currentUserId={currentUserId}
-            />
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+              <NetworkExplorer connectedPeers={connectedPeers} />
+              <RealTimeChat
+                currentUserId={currentUserId}
+                selectedUser={selectedUser}
+                onSendMessage={handleSendMessage}
+                isConnected={isConnected}
+                connectionQuality={connectionQuality}
+              />
+            </div>
             <RightPanel />
           </div>
         );
@@ -162,7 +195,17 @@ export default function Home() {
       case 'network':
         return (
           <div className="flex-1 p-4">
-            <NetworkExplorer connectedPeers={connectedPeers} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <NetworkExplorer connectedPeers={connectedPeers} />
+              <EnhancedRadarView
+                currentUserId={currentUserId}
+                connectedPeers={connectedPeers}
+                isScanning={isScanning}
+                onStartScan={() => setIsScanning(true)}
+                onStopScan={() => setIsScanning(false)}
+                onUserSelect={setSelectedUser}
+              />
+            </div>
           </div>
         );
       case 'stories':
