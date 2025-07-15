@@ -1,234 +1,390 @@
 import { useState, useEffect } from 'react';
-import { RadarView } from './radar-view';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
-import { MeshNode } from '@/types/mesh';
-import { useBluetoothMesh } from '@/hooks/use-bluetooth-mesh';
-import { Bluetooth, WifiOff, Zap, Shield, Activity } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Network, 
+  Activity, 
+  Signal, 
+  Users, 
+  MapPin, 
+  Wifi,
+  WifiOff,
+  Router,
+  Globe,
+  RefreshCw,
+  Info
+} from 'lucide-react';
+import { useAdvancedMesh } from '@/hooks/use-advanced-mesh';
 
 interface NetworkExplorerProps {
-  connectedPeers: Set<string>;
+  nodeId: string;
 }
 
-export function NetworkExplorer({ connectedPeers }: NetworkExplorerProps) {
-  const [meshNodes, setMeshNodes] = useState<MeshNode[]>([]);
-  const [currentUserId] = useState(() => Math.random().toString(36).substr(2, 9));
+export function NetworkExplorer({ nodeId }: NetworkExplorerProps) {
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   
-  // Initialize Bluetooth mesh
   const {
-    isInitialized,
-    devices,
-    connectedDevices,
-    networkStats,
-    isScanning,
-    error,
-    startScanning,
-    stopScanning,
-    connectToDevice,
-    disconnectFromDevice,
-    clearError
-  } = useBluetoothMesh(currentUserId);
+    networkMetrics,
+    connection,
+    refetchNetworkMetrics
+  } = useAdvancedMesh(nodeId);
 
-  // Query mesh nodes from the server
-  const { data: serverNodes } = useQuery({
-    queryKey: ['/api/mesh-nodes'],
-    queryFn: async () => {
-      const response = await fetch('/api/mesh-nodes');
-      return response.json();
-    },
-    refetchInterval: 5000,
-  });
-
-  useEffect(() => {
-    // Combine server nodes with Bluetooth mesh devices
-    const bluetoothNodes: MeshNode[] = devices.map((device) => ({
-      id: device.id,
-      name: device.name,
-      walletAddress: `0x${device.id.slice(-8)}`,
-      signalStrength: Math.abs(device.rssi),
-      distance: Math.round(Math.pow(10, (-69 - device.rssi) / 20)),
-      connectionType: 'bluetooth' as const,
-      isOnline: device.isConnected,
-      position: {
-        x: Math.random() * 200,
-        y: Math.random() * 200
-      }
-    }));
-
-    const serverMeshNodes: MeshNode[] = serverNodes?.map((node: any) => ({
-      id: node.nodeId,
-      name: node.nodeId,
-      walletAddress: `0x${node.nodeId.slice(-8)}`,
-      signalStrength: node.signalStrength,
-      distance: node.distance,
-      connectionType: node.connectionType,
-      isOnline: node.isActive,
-      position: {
-        x: Math.random() * 200,
-        y: Math.random() * 200
-      }
-    })) || [];
-
-    // Merge nodes, prioritizing Bluetooth mesh devices
-    const allNodes = [...bluetoothNodes, ...serverMeshNodes];
-    const uniqueNodes = allNodes.filter((node, index, self) => 
-      index === self.findIndex((n) => n.id === node.id)
-    );
-
-    setMeshNodes(uniqueNodes);
-  }, [serverNodes, devices]);
-
-  const getStatusColor = (node: MeshNode) => {
-    if (node.isOnline) return 'bg-[var(--cyber-green)] shadow-[0_0_10px_var(--cyber-green)]';
-    if (connectedPeers.has(node.id)) return 'bg-[var(--cyber-yellow)] animate-pulse';
-    return 'bg-[var(--cyber-red)]';
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetchNetworkMetrics();
+    setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const getStatusText = (node: MeshNode) => {
-    if (node.isOnline) return 'online';
-    if (connectedPeers.has(node.id)) return 'connecting';
-    return 'offline';
-  };
-
-  const handleDeviceConnect = async (deviceId: string) => {
-    try {
-      await connectToDevice(deviceId);
-    } catch (error) {
-      console.error('Failed to connect to device:', error);
+  const getConnectionQuality = (quality: string) => {
+    switch (quality) {
+      case 'excellent':
+        return { color: 'text-green-500', icon: Wifi, bars: 4 };
+      case 'good':
+        return { color: 'text-blue-500', icon: Wifi, bars: 3 };
+      case 'poor':
+        return { color: 'text-yellow-500', icon: Wifi, bars: 2 };
+      case 'critical':
+        return { color: 'text-red-500', icon: WifiOff, bars: 1 };
+      default:
+        return { color: 'text-gray-500', icon: WifiOff, bars: 0 };
     }
   };
 
-  const handleDeviceDisconnect = async (deviceId: string) => {
-    try {
-      await disconnectFromDevice(deviceId);
-    } catch (error) {
-      console.error('Failed to disconnect from device:', error);
-    }
-  };
+  const mockNodes = [
+    { id: 'node_1', name: 'Gateway Alpha', type: 'gateway', latency: 12, reliability: 98.5, connections: 5 },
+    { id: 'node_2', name: 'Relay Beta', type: 'relay', latency: 28, reliability: 95.2, connections: 3 },
+    { id: 'node_3', name: 'Peer Gamma', type: 'peer', latency: 45, reliability: 92.1, connections: 2 },
+    { id: 'node_4', name: 'Mobile Delta', type: 'mobile', latency: 67, reliability: 89.3, connections: 1 },
+  ];
+
+  const mockRoutes = [
+    { from: 'node_1', to: 'node_2', cost: 28, hops: 1, active: true },
+    { from: 'node_2', to: 'node_3', cost: 45, hops: 2, active: true },
+    { from: 'node_1', to: 'node_4', cost: 67, hops: 3, active: false },
+    { from: 'node_3', to: 'node_4', cost: 89, hops: 2, active: true },
+  ];
 
   return (
-    <div className="w-80 bg-[var(--cyber-gray)] border-r border-gray-800 flex flex-col">
-      {/* Network Header */}
-      <div className="p-4 border-b border-gray-800">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold text-[var(--cyber-cyan)]">MESH NETWORK</h2>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full shadow-[0_0_10px_var(--cyber-green)] ${
-              isInitialized ? 'bg-[var(--cyber-green)]' : 'bg-[var(--cyber-red)]'
-            }`}></div>
-            <span className="text-xs text-gray-400 font-mono">{meshNodes.length} NODES</span>
-          </div>
+    <div className="w-full max-w-6xl mx-auto p-4 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Network Explorer</h2>
+          <p className="text-gray-400 mt-1">Mesh topology visualization and management</p>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <div className="flex items-center space-x-2">
-            <Bluetooth className="w-4 h-4 text-[var(--cyber-cyan)]" />
-            <span>{isInitialized ? 'Bluetooth Mesh Active' : 'Initializing...'}</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={isScanning ? stopScanning : startScanning}
-            className="text-[var(--cyber-magenta)] hover:text-[var(--cyber-cyan)]"
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={refreshing}
           >
-            {isScanning ? <WifiOff className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
         </div>
-        
-        {/* Error Display */}
-        {error && (
-          <div className="mt-2 p-2 bg-[var(--cyber-red)]/20 border border-[var(--cyber-red)]/30 rounded text-xs text-[var(--cyber-red)]">
-            {error}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearError}
-              className="ml-2 text-[var(--cyber-red)] hover:text-white"
-            >
-              ×
-            </Button>
-          </div>
-        )}
       </div>
 
-      {/* Radar View */}
-      <div className="p-4 flex-1">
-        <RadarView nodes={meshNodes} />
-        
-        {/* Node List */}
-        <div className="mt-4 space-y-2">
-          {meshNodes.map((node) => (
-            <Card key={node.id} className="p-2 bg-[var(--cyber-dark)]/50 border-gray-800 hover:border-[var(--cyber-cyan)]/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(node)}`}></div>
-                  <div>
-                    <div className="text-sm font-medium">{node.name}</div>
-                    <div className="text-xs text-gray-400 font-mono">{node.walletAddress}</div>
+      {/* Network Status Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="glass-morphism">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Total Nodes</p>
+                <p className="text-2xl font-bold text-[var(--cyber-cyan)]">
+                  {networkMetrics?.networkStats?.totalNodes || 0}
+                </p>
+              </div>
+              <Network className="w-8 h-8 text-[var(--cyber-cyan)]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-morphism">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Active Routes</p>
+                <p className="text-2xl font-bold text-[var(--cyber-green)]">
+                  {networkMetrics?.networkStats?.activeRoutes || 0}
+                </p>
+              </div>
+              <Router className="w-8 h-8 text-[var(--cyber-green)]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-morphism">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Connected Users</p>
+                <p className="text-2xl font-bold text-[var(--cyber-magenta)]">
+                  {networkMetrics?.connectedUsers?.length || 0}
+                </p>
+              </div>
+              <Users className="w-8 h-8 text-[var(--cyber-magenta)]" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-morphism">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Network Health</p>
+                <p className="text-2xl font-bold text-[var(--cyber-yellow)]">
+                  {networkMetrics?.networkStats?.networkReliability?.toFixed(1) || '0.0'}%
+                </p>
+              </div>
+              <Activity className="w-8 h-8 text-[var(--cyber-yellow)]" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Network Visualization */}
+      <Tabs defaultValue="topology" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="topology">Topology</TabsTrigger>
+          <TabsTrigger value="nodes">Nodes</TabsTrigger>
+          <TabsTrigger value="routes">Routes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="topology" className="space-y-4">
+          <Card className="glass-morphism">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Network className="w-5 h-5" />
+                <span>Network Topology</span>
+              </CardTitle>
+              <CardDescription>
+                Visual representation of mesh network structure
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative h-96 bg-gray-900 rounded-lg p-4 overflow-hidden">
+                {/* Animated network visualization */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative">
+                    {/* Central node */}
+                    <div className="w-12 h-12 bg-[var(--cyber-cyan)] rounded-full flex items-center justify-center relative">
+                      <Network className="w-6 h-6 text-white" />
+                      <div className="absolute inset-0 bg-[var(--cyber-cyan)] rounded-full animate-pulse opacity-50"></div>
+                    </div>
+                    
+                    {/* Connected nodes */}
+                    {mockNodes.map((node, index) => {
+                      const angle = (index * 360) / mockNodes.length;
+                      const radius = 120;
+                      const x = Math.cos((angle * Math.PI) / 180) * radius;
+                      const y = Math.sin((angle * Math.PI) / 180) * radius;
+                      
+                      return (
+                        <div
+                          key={node.id}
+                          className="absolute w-8 h-8 bg-[var(--cyber-green)] rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+                          style={{
+                            left: `${x}px`,
+                            top: `${y}px`,
+                            transform: 'translate(-50%, -50%)'
+                          }}
+                          onClick={() => setSelectedNode(node.id)}
+                        >
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                          
+                          {/* Connection line */}
+                          <div 
+                            className="absolute w-0.5 bg-[var(--cyber-cyan)]/50 origin-center"
+                            style={{
+                              height: `${radius}px`,
+                              left: '50%',
+                              top: '50%',
+                              transform: `translate(-50%, -50%) rotate(${angle + 180}deg)`,
+                              transformOrigin: 'center bottom'
+                            }}
+                          ></div>
+                          
+                          {/* Node label */}
+                          <div className="absolute top-10 left-1/2 transform -translate-x-1/2 text-xs text-white whitespace-nowrap">
+                            {node.name}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-[var(--cyber-cyan)]">{node.distance}m</div>
-                  <div className="flex items-center space-x-1">
-                    <Badge variant="outline" className="text-xs">
-                      {node.connectionType}
-                    </Badge>
-                    {node.connectionType === 'bluetooth' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => node.isOnline ? handleDeviceDisconnect(node.id) : handleDeviceConnect(node.id)}
-                        className="text-xs px-1 py-0.5 h-6"
-                      >
-                        {node.isOnline ? 'Disconnect' : 'Connect'}
-                      </Button>
-                    )}
+                
+                {/* Connection quality indicator */}
+                <div className="absolute top-4 right-4">
+                  <div className="flex items-center space-x-2 bg-black/50 rounded-lg p-2">
+                    <Signal className={`w-4 h-4 ${getConnectionQuality(connection?.connectionQuality || 'poor').color}`} />
+                    <span className="text-xs text-white">
+                      {(connection?.connectionQuality || 'poor').toUpperCase()}
+                    </span>
                   </div>
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Connection Stats */}
-      <div className="p-4 border-t border-gray-800">
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="glass-morphism rounded-lg p-3">
-            <div className="text-[var(--cyber-cyan)] font-mono text-lg font-bold">
-              {connectedDevices.length}
+        <TabsContent value="nodes" className="space-y-4">
+          <Card className="glass-morphism">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Users className="w-5 h-5" />
+                <span>Network Nodes</span>
+              </CardTitle>
+              <CardDescription>
+                Detailed information about mesh network nodes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockNodes.map((node) => (
+                  <div 
+                    key={node.id}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      selectedNode === node.id 
+                        ? 'border-[var(--cyber-cyan)] bg-[var(--cyber-cyan)]/10' 
+                        : 'border-gray-700 hover:border-[var(--cyber-cyan)]/50'
+                    }`}
+                    onClick={() => setSelectedNode(selectedNode === node.id ? null : node.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-[var(--cyber-green)] rounded-full flex items-center justify-center">
+                          <div className="w-3 h-3 bg-white rounded-full"></div>
+                        </div>
+                        <div>
+                          <p className="font-medium">{node.name}</p>
+                          <p className="text-sm text-gray-400 capitalize">{node.type} node</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Badge variant="outline" className="text-[var(--cyber-cyan)]">
+                          {node.connections} connections
+                        </Badge>
+                        <Badge variant="outline" className="text-[var(--cyber-green)]">
+                          {node.latency}ms
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    {selectedNode === node.id && (
+                      <div className="mt-4 pt-4 border-t border-gray-700">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-400">Latency</p>
+                            <p className="text-lg font-bold text-[var(--cyber-cyan)]">{node.latency}ms</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">Reliability</p>
+                            <p className="text-lg font-bold text-[var(--cyber-green)]">{node.reliability}%</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">Connections</p>
+                            <p className="text-lg font-bold text-[var(--cyber-magenta)]">{node.connections}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <p className="text-sm text-gray-400 mb-2">Reliability Score</p>
+                          <Progress value={node.reliability} className="h-2" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="routes" className="space-y-4">
+          <Card className="glass-morphism">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Router className="w-5 h-5" />
+                <span>Routing Table</span>
+              </CardTitle>
+              <CardDescription>
+                Network routing information and path optimization
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockRoutes.map((route, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-[var(--cyber-cyan)] rounded-full"></div>
+                          <span className="text-sm">{route.from}</span>
+                          <span className="text-gray-400">→</span>
+                          <span className="text-sm">{route.to}</span>
+                          <div className="w-3 h-3 bg-[var(--cyber-green)] rounded-full"></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Badge variant="outline" className="text-[var(--cyber-yellow)]">
+                          {route.hops} hops
+                        </Badge>
+                        <Badge variant="outline" className="text-[var(--cyber-cyan)]">
+                          Cost: {route.cost}
+                        </Badge>
+                        <Badge 
+                          variant="outline" 
+                          className={route.active ? 'text-[var(--cyber-green)]' : 'text-[var(--cyber-red)]'}
+                        >
+                          {route.active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Connection Status */}
+      <Card className="glass-morphism">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Globe className="w-5 h-5" />
+            <span>Connection Status</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--cyber-cyan)]">
+                {connection.isConnected ? 'Connected' : 'Disconnected'}
+              </div>
+              <div className="text-sm text-gray-400">Connection Status</div>
             </div>
-            <div className="text-xs text-gray-400">Connected</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--cyber-green)]">
+                {connection.metrics.latency}ms
+              </div>
+              <div className="text-sm text-gray-400">Latency</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-[var(--cyber-magenta)]">
+                {(connection.metrics.reliability * 100).toFixed(1)}%
+              </div>
+              <div className="text-sm text-gray-400">Reliability</div>
+            </div>
           </div>
-          <div className="glass-morphism rounded-lg p-3">
-            <div className="text-[var(--cyber-green)] font-mono text-lg font-bold">
-              {networkStats.totalDevices}
-            </div>
-            <div className="text-xs text-gray-400">Discovered</div>
-          </div>
-        </div>
-        
-        {/* Bluetooth Mesh Stats */}
-        {isInitialized && (
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Routing Entries:</span>
-              <span className="text-[var(--cyber-magenta)] font-mono">{networkStats.routingEntries}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Message Buffer:</span>
-              <span className="text-[var(--cyber-yellow)] font-mono">{networkStats.messageBufferSize}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Mesh Health:</span>
-              <span className="text-[var(--cyber-green)] font-mono">
-                {connectedDevices.length > 0 ? '100%' : '0%'}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

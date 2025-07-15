@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import { AuthManager } from '@/components/auth-manager';
 import { UserProfile } from '@/components/user-profile';
 import { EnhancedScanner } from '@/components/enhanced-scanner';
@@ -7,6 +8,9 @@ import { Sidebar } from '@/components/sidebar';
 import { NetworkAnalyticsDashboard } from '@/components/network-analytics-dashboard';
 import { FileTransferManager } from '@/components/file-transfer-manager';
 import { SecurityMonitor } from '@/components/security-monitor';
+import { NetworkExplorer } from '@/components/network-explorer';
+import { StoriesManager } from '@/components/stories-manager';
+import { BluetoothManager } from '@/components/bluetooth-manager';
 import { useSimpleWebRTC } from '@/hooks/use-simple-webrtc';
 import { useAdvancedMesh } from '@/hooks/use-advanced-mesh';
 import { useOfflineStorage } from '@/hooks/use-offline-storage';
@@ -143,40 +147,37 @@ export default function Home() {
           
           {activeTab === 'transfers' && (
             <div className="flex-1 p-4 lg:p-6">
-              <FileTransferManager />
+              <FileTransferManager 
+                nodeId={currentUser?.id.toString() || 'guest'}
+                availableNodes={meshHook?.networkMetrics?.connectedUsers || []}
+              />
             </div>
           )}
           
           {activeTab === 'security' && (
             <div className="flex-1 p-4 lg:p-6">
-              <SecurityMonitor />
+              <SecurityMonitor nodeId={currentUser?.id.toString() || 'guest'} />
             </div>
           )}
           
           {activeTab === 'network' && (
             <div className="flex-1 p-4 lg:p-6">
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Network Explorer</h2>
-                <p className="text-gray-400">Mesh network topology visualization coming soon...</p>
-              </div>
+              <NetworkExplorer nodeId={currentUser?.id.toString() || 'guest'} />
             </div>
           )}
           
           {activeTab === 'stories' && (
             <div className="flex-1 p-4 lg:p-6">
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Stories</h2>
-                <p className="text-gray-400">Ephemeral content sharing coming soon...</p>
-              </div>
+              <StoriesManager 
+                userId={currentUser?.id || 0}
+                currentUser={currentUser}
+              />
             </div>
           )}
           
           {activeTab === 'bluetooth' && (
             <div className="flex-1 p-4 lg:p-6">
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)]">Bluetooth Discovery</h2>
-                <p className="text-gray-400">Device pairing and mesh extension coming soon...</p>
-              </div>
+              <BluetoothManager nodeId={currentUser?.id.toString() || 'guest'} />
             </div>
           )}
         </main>

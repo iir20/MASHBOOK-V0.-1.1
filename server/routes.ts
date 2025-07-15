@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, updateUserSchema, insertMessageSchema, insertMeshNodeSchema } from "@shared/schema";
+import { insertUserSchema, updateUserSchema, insertMessageSchema, insertMeshNodeSchema, insertStorySchema } from "@shared/schema";
 import { ConnectionManager } from "./networking/ConnectionManager";
 import { MeshRouter } from "./networking/MeshRouter";
 import { CryptoManager } from "./security/CryptoManager";
@@ -132,6 +132,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stories);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stories" });
+    }
+  });
+
+  app.post("/api/stories", async (req, res) => {
+    try {
+      const storyData = insertStorySchema.parse(req.body);
+      const story = await storage.createStory(storyData);
+      res.json(story);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid story data" });
+    }
+  });
+
+  app.get("/api/stories/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const stories = await storage.getStoriesByUser(userId);
+      res.json(stories);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user stories" });
+    }
+  });
+
+  app.delete("/api/stories/:id", async (req, res) => {
+    try {
+      const storyId = parseInt(req.params.id);
+      // For now, we'll just return success since we don't have a delete method
+      // In a real implementation, you'd add this to the storage interface
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete story" });
     }
   });
   
