@@ -3,14 +3,16 @@ import { Button } from '@/components/ui/button';
 import { AuthManager } from '@/components/auth-manager';
 import { UserProfile } from '@/components/user-profile';
 import { EnhancedScanner } from '@/components/enhanced-scanner';
-import { ModernChat } from '@/components/modern-chat';
+import { EnhancedModernChat } from '@/components/enhanced-modern-chat';
 import { Sidebar } from '@/components/sidebar';
 import { NetworkAnalyticsDashboard } from '@/components/network-analytics-dashboard';
-import { FileTransferManager } from '@/components/file-transfer-manager';
+import { AdvancedFileTransfer } from '@/components/advanced-file-transfer';
 import { SecurityMonitor } from '@/components/security-monitor';
 import { NetworkExplorer } from '@/components/network-explorer';
 import { StoriesManager } from '@/components/stories-manager';
 import { BluetoothManager } from '@/components/bluetooth-manager';
+import { NotificationSystem } from '@/components/notification-system';
+import { VoiceVideoCall } from '@/components/voice-video-call';
 import { useSimpleWebRTC } from '@/hooks/use-simple-webrtc';
 import { useAdvancedMesh } from '@/hooks/use-advanced-mesh';
 import { useOfflineStorage } from '@/hooks/use-offline-storage';
@@ -23,6 +25,9 @@ export default function Home() {
   const [selectedUserId, setSelectedUserId] = useState<number>(0);
   const [showProfile, setShowProfile] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [isVoiceCall, setIsVoiceCall] = useState(false);
+  const [isVideoCall, setIsVideoCall] = useState(false);
   const { isConnected } = useSimpleWebRTC();
   const meshHook = useAdvancedMesh(currentUser?.id.toString() || 'guest');
   const { storeMessage } = useOfflineStorage();
@@ -71,7 +76,7 @@ export default function Home() {
           {activeTab === 'chat' && (
             <div className="flex-1 flex flex-col lg:flex-row relative">
               <div className="flex-1 min-h-0 lg:min-h-0">
-                <ModernChat
+                <EnhancedModernChat
                   currentUser={currentUser}
                   selectedUserId={selectedUserId > 0 ? selectedUserId : undefined}
                   onUserSelect={setSelectedUserId}
@@ -147,8 +152,8 @@ export default function Home() {
           
           {activeTab === 'transfers' && (
             <div className="flex-1 p-4 lg:p-6">
-              <FileTransferManager 
-                nodeId={currentUser?.id.toString() || 'guest'}
+              <AdvancedFileTransfer 
+                currentUser={currentUser}
                 availableNodes={meshHook?.networkMetrics?.connectedUsers || []}
               />
             </div>
@@ -180,8 +185,39 @@ export default function Home() {
               <BluetoothManager nodeId={currentUser?.id.toString() || 'guest'} />
             </div>
           )}
+          
+          {activeTab === 'notifications' && (
+            <div className="flex-1 p-4 lg:p-6">
+              <NotificationSystem />
+            </div>
+          )}
         </main>
       </div>
+      
+      {/* Voice/Video Call Overlay */}
+      {(isVoiceCall || isVideoCall) && (
+        <VoiceVideoCall
+          isVoiceCall={isVoiceCall}
+          isVideoCall={isVideoCall}
+          participants={[
+            {
+              id: currentUser?.id.toString() || 'user1',
+              username: currentUser?.username || 'User',
+              isLocal: true,
+              videoEnabled: isVideoCall,
+              audioEnabled: true,
+              connectionQuality: 'good'
+            }
+          ]}
+          onEndCall={() => {
+            setIsVoiceCall(false);
+            setIsVideoCall(false);
+          }}
+          onToggleVideo={() => setIsVideoCall(!isVideoCall)}
+          onToggleAudio={() => {}}
+          onToggleScreenShare={() => {}}
+        />
+      )}
     </div>
   );
 }
