@@ -1,248 +1,142 @@
 import { useState, useEffect } from 'react';
+import { AuthManager } from '@/components/auth-manager';
+import { UserProfile } from '@/components/user-profile';
+import { EnhancedScanner } from '@/components/enhanced-scanner';
+import { ModernChat } from '@/components/modern-chat';
 import { Sidebar } from '@/components/sidebar';
-import { NetworkExplorer } from '@/components/network-explorer';
-import { ChatInterface } from '@/components/chat-interface';
-import { RightPanel } from '@/components/right-panel';
 import { NetworkAnalyticsDashboard } from '@/components/network-analytics-dashboard';
 import { FileTransferManager } from '@/components/file-transfer-manager';
 import { SecurityMonitor } from '@/components/security-monitor';
-import { EnhancedRadarView } from '@/components/enhanced-radar-view';
-import { RealTimeChat } from '@/components/real-time-chat';
 import { useSimpleWebRTC } from '@/hooks/use-simple-webrtc';
-import { useEncryption } from '@/hooks/use-encryption';
 import { useAdvancedMesh } from '@/hooks/use-advanced-mesh';
 import { useOfflineStorage } from '@/hooks/use-offline-storage';
-import { ChatMessage } from '@/types/mesh';
+import type { User } from '@shared/schema';
 
 export default function Home() {
-  const [currentUserId] = useState(() => Math.random().toString(36).substr(2, 9));
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [deviceId, setDeviceId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('chat');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number>(0);
+  const [showProfile, setShowProfile] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  
-  const { sendP2PMessage, connectedPeers, isConnected: isWebRTCConnected } = useSimpleWebRTC(currentUserId);
-  const { encryptMessage, decryptMessage, isReady } = useEncryption();
-  const { 
-    isConnected: isMeshConnected,
-    connectionQuality,
-    networkMetrics,
-    sendMeshMessage,
-    messages: meshMessages
-  } = useAdvancedMesh(currentUserId);
-  
-  const {
-    addMessage,
-    addOrUpdateUser,
-    isOfflineMode,
-    users: offlineUsers,
-    syncPendingData
-  } = useOfflineStorage();
+  const { isConnected } = useSimpleWebRTC();
+  const meshHook = useAdvancedMesh(currentUser?.id.toString() || 'guest');
+  const { storeMessage } = useOfflineStorage();
 
-  useEffect(() => {
-    if (isReady && (isWebRTCConnected || isMeshConnected)) {
-      setIsConnected(true);
-    }
-  }, [isReady, isWebRTCConnected, isMeshConnected]);
-
-  // Merge WebRTC and mesh messages
-  useEffect(() => {
-    if (meshMessages.length > 0) {
-      const formattedMessages = meshMessages.map(msg => ({
-        id: msg.id,
-        fromUserId: msg.source || msg.type === 'system' ? 'system' : currentUserId,
-        fromUsername: msg.source || (msg.type === 'system' ? 'System' : 'You'),
-        content: msg.content,
-        timestamp: msg.timestamp || new Date(),
-        messageType: 'text' as const,
-        isEncrypted: msg.type === 'mesh',
-        meshHops: msg.hopCount || 0
-      }));
-      setMessages(prev => [...prev, ...formattedMessages]);
-    }
-  }, [meshMessages, currentUserId]);
-  
-  // Sync pending data when connection is restored
-  useEffect(() => {
-    if (!isOfflineMode && isMeshConnected) {
-      syncPendingData();
-    }
-  }, [isOfflineMode, isMeshConnected, syncPendingData]);
-
-  const handleSendMessage = async (content: string) => {
-    try {
-      const encryptedContent = await encryptMessage(content);
-      
-      const message: ChatMessage = {
-        id: Date.now().toString(),
-        fromUserId: currentUserId,
-        fromUsername: 'You',
-        content,
-        timestamp: new Date(),
-        messageType: 'text',
-        isEncrypted: true,
-        meshHops: 0
-      };
-
-      setMessages(prev => [...prev, message]);
-      
-      // Store message offline-first
-      addMessage({
-        content,
-        fromUserId: currentUserId,
-        toUserId: selectedUser || undefined,
-        isEncrypted: true
-      });
-      
-      // Send via WebRTC if online
-      if (!isOfflineMode) {
-        sendP2PMessage({
-          type: 'message',
-          message: {
-            ...message,
-            content: encryptedContent
-          }
-        });
-
-        // Send via mesh network if available
-        if (isMeshConnected && connectedPeers.length > 0) {
-          sendMeshMessage(connectedPeers[0], encryptedContent);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    }
+  const handleUserAuthenticated = (user: User, userDeviceId: string) => {
+    setCurrentUser(user);
+    setDeviceId(userDeviceId);
   };
 
-  // Initialize with some demo messages
-  useEffect(() => {
-    const demoMessages: ChatMessage[] = [
-      {
-        id: '1',
-        fromUserId: 'demo1',
-        fromUsername: 'CyberNode_A1',
-        content: 'Mesh network is stable. Signal strength optimal for relay operations.',
-        timestamp: new Date(Date.now() - 120000),
-        messageType: 'text',
-        isEncrypted: true,
-        meshHops: 1
-      },
-      {
-        id: '2',
-        fromUserId: currentUserId,
-        fromUsername: 'You',
-        content: 'Copy that. Initiating new relay connection to extend mesh coverage.',
-        timestamp: new Date(Date.now() - 60000),
-        messageType: 'text',
-        isEncrypted: true,
-        meshHops: 0
-      },
-      {
-        id: '3',
-        fromUserId: 'demo3',
-        fromUsername: 'NetRunner_X9',
-        content: 'New mesh deployment in sector 7. Network topology expanding rapidly.',
-        timestamp: new Date(Date.now() - 30000),
-        messageType: 'text',
-        isEncrypted: true,
-        meshHops: 3
-      }
-    ];
+  const handleUserDetected = (detectedUser: any) => {
+    // Store detected user for future mesh networking
+    console.log('User detected:', detectedUser);
     
-    setMessages(demoMessages);
-  }, [currentUserId]);
-
-  const renderMainContent = () => {
-    switch (activeTab) {
-      case 'chat':
-        return (
-          <div className="flex-1 flex">
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
-              <NetworkExplorer connectedPeers={connectedPeers} />
-              <RealTimeChat
-                currentUserId={currentUserId}
-                selectedUser={selectedUser}
-                onSendMessage={handleSendMessage}
-                isConnected={isConnected}
-                connectionQuality={connectionQuality}
-              />
-            </div>
-            <RightPanel />
-          </div>
-        );
-      case 'analytics':
-        return (
-          <div className="flex-1 overflow-auto">
-            <NetworkAnalyticsDashboard nodeId={currentUserId} />
-          </div>
-        );
-      case 'transfers':
-        return (
-          <div className="flex-1 overflow-auto">
-            <FileTransferManager 
-              nodeId={currentUserId} 
-              availableNodes={connectedPeers}
-            />
-          </div>
-        );
-      case 'security':
-        return (
-          <div className="flex-1 overflow-auto">
-            <SecurityMonitor nodeId={currentUserId} />
-          </div>
-        );
-      case 'network':
-        return (
-          <div className="flex-1 p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <NetworkExplorer connectedPeers={connectedPeers} />
-              <EnhancedRadarView
-                currentUserId={currentUserId}
-                connectedPeers={connectedPeers}
-                isScanning={isScanning}
-                onStartScan={() => setIsScanning(true)}
-                onStopScan={() => setIsScanning(false)}
-                onUserSelect={setSelectedUser}
-              />
-            </div>
-          </div>
-        );
-      case 'stories':
-        return (
-          <div className="flex-1 flex">
-            <div className="flex-1 p-4">
-              <div className="text-center py-8">
-                <h2 className="text-2xl font-bold text-[var(--cyber-cyan)] mb-4">Stories</h2>
-                <p className="text-gray-400">Coming soon...</p>
-              </div>
-            </div>
-          </div>
-        );
-      case 'bluetooth':
-        return (
-          <div className="flex-1 p-4">
-            <div className="text-center py-8">
-              <h2 className="text-2xl font-bold text-[var(--cyber-cyan)] mb-4">Bluetooth Mesh</h2>
-              <p className="text-gray-400">Advanced Bluetooth mesh networking interface coming soon...</p>
-            </div>
-          </div>
-        );
-      default:
-        return renderMainContent();
-    }
+    // Could store this in local storage or send to server for mesh topology
+    storeMessage({
+      id: `detection_${Date.now()}`,
+      content: `User ${detectedUser.username} detected at ${detectedUser.distance}m`,
+      fromUserId: currentUser?.id || 0,
+      timestamp: new Date(),
+      messageType: 'system'
+    });
   };
+
+  // Show authentication if no user is logged in
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center p-4">
+        <AuthManager onUserAuthenticated={handleUserAuthenticated} />
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen flex bg-[var(--cyber-dark)] text-white overflow-hidden relative">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-[var(--cyber-cyan)]/5 via-transparent to-transparent animate-pulse"></div>
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-[var(--cyber-magenta)]/5 via-transparent to-transparent animate-pulse"></div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+      <div className="flex h-screen">
+        {/* Sidebar */}
+        <Sidebar 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab}
+          isConnected={isConnected}
+          connectionCount={0}
+        />
+        
+        {/* Main Content */}
+        <main className="flex-1 flex">
+          {activeTab === 'chat' && (
+            <div className="flex-1 flex flex-col lg:flex-row">
+              <div className="flex-1 min-h-0">
+                <ModernChat
+                  currentUser={currentUser}
+                  selectedUserId={selectedUserId > 0 ? selectedUserId : undefined}
+                  onUserSelect={setSelectedUserId}
+                />
+              </div>
+              
+              {/* Mobile-friendly right panel */}
+              <div className={`
+                lg:w-80 w-full lg:border-l border-[var(--cyber-cyan)]/30 
+                ${selectedUserId > 0 ? 'hidden lg:block' : 'block lg:block'}
+                flex flex-col
+              `}>
+                {/* User Profile Section */}
+                <div className="p-4 border-b border-[var(--cyber-cyan)]/30">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-10 h-10 bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)] rounded-full flex items-center justify-center cursor-pointer"
+                      onClick={() => setShowProfile(!showProfile)}
+                    >
+                      <span className="text-white font-bold">{currentUser.username.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium truncate">{currentUser.username}</p>
+                      <p className="text-xs text-gray-400">Connected</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profile Modal */}
+                {showProfile && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <UserProfile
+                      userId={currentUser.id}
+                      deviceId={deviceId}
+                      onClose={() => setShowProfile(false)}
+                    />
+                  </div>
+                )}
+
+                {/* Scanner Section */}
+                <div className="flex-1 min-h-0 p-4">
+                  <EnhancedScanner
+                    onUserDetected={handleUserDetected}
+                    onScanStateChange={setIsScanning}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'analytics' && (
+            <div className="flex-1 p-4">
+              <NetworkAnalyticsDashboard />
+            </div>
+          )}
+          
+          {activeTab === 'transfers' && (
+            <div className="flex-1 p-4">
+              <FileTransferManager />
+            </div>
+          )}
+          
+          {activeTab === 'security' && (
+            <div className="flex-1 p-4">
+              <SecurityMonitor />
+            </div>
+          )}
+        </main>
       </div>
-      
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      {renderMainContent()}
     </div>
   );
 }

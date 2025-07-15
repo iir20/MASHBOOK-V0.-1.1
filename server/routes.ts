@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertUserSchema, insertMessageSchema, insertMeshNodeSchema } from "@shared/schema";
+import { insertUserSchema, updateUserSchema, insertMessageSchema, insertMeshNodeSchema } from "@shared/schema";
 import { ConnectionManager } from "./networking/ConnectionManager";
 import { MeshRouter } from "./networking/MeshRouter";
 import { CryptoManager } from "./security/CryptoManager";
@@ -46,15 +46,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/users/wallet/:address", async (req, res) => {
+  app.get("/api/users/device/:deviceId", async (req, res) => {
     try {
-      const user = await storage.getUserByWalletAddress(req.params.address);
+      const user = await storage.getUserByDeviceId(req.params.deviceId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
       res.json(user);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+  
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const updates = updateUserSchema.parse(req.body);
+      const updatedUser = await storage.updateUser(userId, updates);
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid update data" });
     }
   });
   

@@ -3,8 +3,9 @@ import { users, messages, meshNodes, stories, type User, type InsertUser, type M
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
-  getUserByWalletAddress(walletAddress: string): Promise<User | undefined>;
+  getUserByDeviceId(deviceId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
   updateUserOnlineStatus(id: number, isOnline: boolean): Promise<void>;
   
   // Message methods
@@ -43,60 +44,17 @@ export class MemStorage implements IStorage {
     this.currentMessageId = 1;
     this.currentNodeId = 1;
     this.currentStoryId = 1;
-    
-    // Initialize with some demo data
-    this.initializeDemoData();
   }
 
-  private initializeDemoData() {
-    // Create demo users
-    const demoUsers = [
-      { username: "CyberNode_A1", walletAddress: "0x1a2b3c4d5e6f7890", publicKey: "0x1a2b3c4d5e6f7890" },
-      { username: "MeshRelay_B7", walletAddress: "0x5e6f7890a1b2c3d4", publicKey: "0x5e6f7890a1b2c3d4" },
-      { username: "NetRunner_X9", walletAddress: "0x9i0j1k2l3m4n5o6p", publicKey: "0x9i0j1k2l3m4n5o6p" },
-    ];
 
-    demoUsers.forEach(user => {
-      const newUser: User = {
-        id: this.currentUserId++,
-        username: user.username,
-        walletAddress: user.walletAddress,
-        publicKey: user.publicKey,
-        isOnline: Math.random() > 0.3,
-        lastSeen: new Date(),
-      };
-      this.users.set(newUser.id, newUser);
-    });
-
-    // Create demo mesh nodes
-    const demoNodes = [
-      { nodeId: "node_a1", userId: 1, signalStrength: 85, distance: 15, connectionType: "bluetooth" },
-      { nodeId: "node_b7", userId: 2, signalStrength: 65, distance: 45, connectionType: "webrtc" },
-      { nodeId: "node_x9", userId: 3, signalStrength: 90, distance: 28, connectionType: "bluetooth" },
-    ];
-
-    demoNodes.forEach(node => {
-      const newNode: MeshNode = {
-        id: this.currentNodeId++,
-        nodeId: node.nodeId,
-        userId: node.userId,
-        signalStrength: node.signalStrength,
-        distance: node.distance,
-        connectionType: node.connectionType,
-        isActive: true,
-        lastSeen: new Date(),
-      };
-      this.meshNodes.set(newNode.id, newNode);
-    });
-  }
 
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
 
-  async getUserByWalletAddress(walletAddress: string): Promise<User | undefined> {
+  async getUserByDeviceId(deviceId: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.walletAddress === walletAddress
+      (user) => user.deviceId === deviceId
     );
   }
 
@@ -110,6 +68,16 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      const updatedUser = { ...user, ...updates, lastSeen: new Date() };
+      this.users.set(id, updatedUser);
+      return updatedUser;
+    }
+    return undefined;
   }
 
   async updateUserOnlineStatus(id: number, isOnline: boolean): Promise<void> {

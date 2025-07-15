@@ -5,7 +5,9 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  walletAddress: text("wallet_address").notNull().unique(),
+  bio: text("bio").default(""),
+  profileImage: text("profile_image").default(""),
+  deviceId: text("device_id").notNull().unique(),
   publicKey: text("public_key").notNull(),
   isOnline: boolean("is_online").default(false),
   lastSeen: timestamp("last_seen").defaultNow(),
@@ -46,9 +48,17 @@ export const stories = pgTable("stories", {
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
-  walletAddress: true,
+  bio: true,
+  profileImage: true,
+  deviceId: true,
   publicKey: true,
 });
+
+export const updateUserSchema = createInsertSchema(users).pick({
+  username: true,
+  bio: true,
+  profileImage: true,
+}).partial();
 
 export const insertMessageSchema = createInsertSchema(messages).pick({
   fromUserId: true,
@@ -78,6 +88,7 @@ export const insertStorySchema = createInsertSchema(stories).pick({
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
