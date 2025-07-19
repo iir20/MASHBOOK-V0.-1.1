@@ -65,6 +65,7 @@ export class MemStorage implements IStorage {
       id,
       isOnline: true,
       lastSeen: new Date(),
+      createdAt: new Date(),
     };
     this.users.set(id, user);
     return user;

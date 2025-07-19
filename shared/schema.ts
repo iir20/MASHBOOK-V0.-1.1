@@ -4,13 +4,18 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  bio: text("bio").default(""),
-  profileImage: text("profile_image").default(""),
+  alias: text("alias").notNull().unique(), // Changed from username to alias
+  profile: text("profile").default(""), // Changed from bio to profile
+  avatar: text("avatar").default(""), // Changed from profileImage to avatar
   deviceId: text("device_id").notNull().unique(),
   publicKey: text("public_key").notNull(),
+  privateKeyEncrypted: text("private_key_encrypted"), // Added encrypted private key storage
+  meshCallsign: text("mesh_callsign").notNull().unique(), // Added unique mesh identifier
+  securityLevel: integer("security_level").default(1), // 1-5 security clearance
+  nodeCapabilities: text("node_capabilities").array().default([]), // Array of capabilities
   isOnline: boolean("is_online").default(false),
   lastSeen: timestamp("last_seen").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const messages = pgTable("messages", {
@@ -47,17 +52,23 @@ export const stories = pgTable("stories", {
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  bio: true,
-  profileImage: true,
+  alias: true,
+  profile: true,
+  avatar: true,
   deviceId: true,
   publicKey: true,
+  privateKeyEncrypted: true,
+  meshCallsign: true,
+  securityLevel: true,
+  nodeCapabilities: true,
 });
 
 export const updateUserSchema = createInsertSchema(users).pick({
-  username: true,
-  bio: true,
-  profileImage: true,
+  alias: true,
+  profile: true,
+  avatar: true,
+  securityLevel: true,
+  nodeCapabilities: true,
 }).partial();
 
 export const insertMessageSchema = createInsertSchema(messages).pick({
