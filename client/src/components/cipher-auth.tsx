@@ -256,36 +256,36 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-purple-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl border-purple-500/30 bg-black/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-600 to-cyan-600 rounded-lg flex items-center justify-center mb-4">
-            <Brain className="w-8 h-8 text-white" />
+      <Card className="w-full max-w-lg lg:max-w-2xl border-purple-500/30 bg-black/80 backdrop-blur-sm">
+        <CardHeader className="text-center px-4 lg:px-6">
+          <div className="mx-auto w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-600 to-cyan-600 rounded-lg flex items-center justify-center mb-4">
+            <Brain className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-            CIPHER AUTHENTICATION
+          <CardTitle className="text-xl lg:text-3xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+            CIPHER AUTH
           </CardTitle>
-          <p className="text-gray-400 mt-2">
-            {mode === 'login' ? 'Access the neural mesh network' : 'Join the quantum collective'}
+          <p className="text-gray-400 mt-2 text-sm lg:text-base">
+            {mode === 'login' ? 'Access neural mesh' : 'Join quantum collective'}
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 lg:space-y-6 px-4 lg:px-6">
           {/* Device Information */}
           <Card className="border-gray-700 bg-gray-900/50">
-            <CardContent className="p-4">
+            <CardContent className="p-3 lg:p-4">
               <div className="flex items-center space-x-3 mb-3">
-                <Fingerprint className="w-5 h-5 text-cyan-400" />
-                <span className="font-medium text-cyan-400">Device Identity</span>
+                <Fingerprint className="w-4 h-4 lg:w-5 lg:h-5 text-cyan-400" />
+                <span className="font-medium text-cyan-400 text-sm lg:text-base">Device Identity</span>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Device ID</span>
-                  <Badge className="bg-green-900/30 text-green-400 font-mono text-xs">
-                    {deviceId || 'Generating...'}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-gray-400 text-xs lg:text-sm">Device ID</span>
+                  <Badge className="bg-green-900/30 text-green-400 font-mono text-xs max-w-32 lg:max-w-none truncate">
+                    {deviceId ? deviceId.slice(0, 12) + '...' : 'Generating...'}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Quantum Status</span>
+                  <span className="text-gray-400 text-xs lg:text-sm">Quantum Status</span>
                   <Badge className="bg-purple-900/30 text-purple-400">
                     <Lock className="w-3 h-3 mr-1" />
                     SECURED
@@ -299,19 +299,21 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
           <div className="flex space-x-2 p-1 bg-gray-800 rounded-lg">
             <Button
               variant={mode === 'login' ? 'default' : 'ghost'}
-              className={`flex-1 ${mode === 'login' ? 'bg-purple-600' : 'text-gray-400'}`}
+              className={`flex-1 ${mode === 'login' ? 'bg-purple-600' : 'text-gray-400'} text-xs lg:text-sm`}
               onClick={() => setMode('login')}
             >
-              <KeyRound className="w-4 h-4 mr-2" />
-              Authentication
+              <KeyRound className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+              <span className="hidden lg:inline">Authentication</span>
+              <span className="lg:hidden">Auth</span>
             </Button>
             <Button
               variant={mode === 'register' ? 'default' : 'ghost'}
-              className={`flex-1 ${mode === 'register' ? 'bg-cyan-600' : 'text-gray-400'}`}
+              className={`flex-1 ${mode === 'register' ? 'bg-cyan-600' : 'text-gray-400'} text-xs lg:text-sm`}
               onClick={() => setMode('register')}
             >
-              <User className="w-4 h-4 mr-2" />
-              Registration
+              <User className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+              <span className="hidden lg:inline">Registration</span>
+              <span className="lg:hidden">Register</span>
             </Button>
           </div>
 
@@ -328,17 +330,19 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
                   <Button 
                     onClick={handleLogin}
                     disabled={loginMutation.isPending || !deviceId}
-                    className="w-full bg-purple-600 hover:bg-purple-700"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-sm lg:text-base py-3 lg:py-2"
                   >
                     {loginMutation.isPending ? (
                       <>
                         <Cpu className="w-4 h-4 mr-2 animate-pulse" />
-                        Authenticating...
+                        <span className="hidden lg:inline">Authenticating...</span>
+                        <span className="lg:hidden">Auth...</span>
                       </>
                     ) : (
                       <>
                         <Zap className="w-4 h-4 mr-2" />
-                        Access Neural Mesh
+                        <span className="hidden lg:inline">Access Neural Mesh</span>
+                        <span className="lg:hidden">Access Mesh</span>
                       </>
                     )}
                   </Button>
@@ -348,22 +352,25 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
           ) : (
             /* Registration Form */
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Node Alias</label>
+                  <label className="text-xs lg:text-sm font-medium text-gray-300">Node Alias</label>
                   <Input
                     value={formData.alias}
                     onChange={(e) => setFormData(prev => ({ ...prev, alias: e.target.value }))}
                     placeholder="Enter your alias..."
-                    className="mt-1 bg-gray-900 border-gray-600 text-gray-300"
+                    className="mt-1 bg-gray-900 border-gray-600 text-gray-300 text-sm lg:text-base"
                   />
+                  {!formData.alias && (
+                    <p className="text-xs text-red-400 mt-1">Alias is required</p>
+                  )}
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Security Level</label>
+                  <label className="text-xs lg:text-sm font-medium text-gray-300">Security Level</label>
                   <select
                     value={formData.securityLevel}
                     onChange={(e) => setFormData(prev => ({ ...prev, securityLevel: parseInt(e.target.value) }))}
-                    className="mt-1 w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-300"
+                    className="mt-1 w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-300 text-xs lg:text-sm"
                   >
                     <option value={1}>Level 1 - Initiate</option>
                     <option value={2}>Level 2 - Operative</option>
@@ -375,25 +382,25 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-300">Profile Description</label>
+                <label className="text-xs lg:text-sm font-medium text-gray-300">Profile Description</label>
                 <Textarea
                   value={formData.profile}
                   onChange={(e) => setFormData(prev => ({ ...prev, profile: e.target.value }))}
                   placeholder="Describe your role in the mesh network..."
-                  className="mt-1 bg-gray-900 border-gray-600 text-gray-300"
+                  className="mt-1 bg-gray-900 border-gray-600 text-gray-300 text-sm lg:text-base"
                   rows={3}
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-3 block">Node Capabilities</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs lg:text-sm font-medium text-gray-300 mb-3 block">Node Capabilities</label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                   {availableCapabilities.map(capability => (
                     <Button
                       key={capability}
                       variant={formData.nodeCapabilities.includes(capability) ? "default" : "outline"}
                       size="sm"
-                      className={`justify-start text-xs ${
+                      className={`justify-start text-xs lg:text-sm ${
                         formData.nodeCapabilities.includes(capability)
                           ? 'bg-cyan-600 hover:bg-cyan-700'
                           : 'border-gray-600 text-gray-400 hover:bg-gray-800'
@@ -451,17 +458,19 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
               <Button 
                 onClick={handleRegister}
                 disabled={registerMutation.isPending || !formData.alias.trim()}
-                className="w-full bg-cyan-600 hover:bg-cyan-700"
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-sm lg:text-base py-3 lg:py-2"
               >
                 {registerMutation.isPending ? (
                   <>
                     <Cpu className="w-4 h-4 mr-2 animate-pulse" />
-                    Joining Network...
+                    <span className="hidden lg:inline">Joining Network...</span>
+                    <span className="lg:hidden">Joining...</span>
                   </>
                 ) : (
                   <>
                     <Brain className="w-4 h-4 mr-2" />
-                    Initialize Neural Node
+                    <span className="hidden lg:inline">Initialize Neural Node</span>
+                    <span className="lg:hidden">Initialize Node</span>
                   </>
                 )}
               </Button>

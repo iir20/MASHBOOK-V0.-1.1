@@ -140,7 +140,7 @@ export function PhantomNavigator({
       <div className={`
         fixed lg:relative
         top-0 left-0 h-full
-        w-80 lg:w-20 xl:w-24
+        w-80 lg:w-20 xl:w-80
         bg-black/95 lg:bg-gray-900/95
         border-r border-purple-500/30
         backdrop-blur-sm
@@ -152,11 +152,11 @@ export function PhantomNavigator({
         
         {/* Header */}
         <div className="p-4 lg:p-6 border-b border-purple-500/30">
-          <div className="flex items-center gap-3 lg:justify-center xl:justify-start">
+          <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-purple-600 via-cyan-600 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
               <Zap className="w-6 h-6 text-white" />
             </div>
-            <div className="lg:hidden xl:block">
+            <div>
               <h1 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
                 PHANTOM MESH
               </h1>
@@ -167,9 +167,9 @@ export function PhantomNavigator({
 
         {/* Connection Status */}
         <div className="p-4 lg:p-6">
-          <Badge className={`w-full justify-center lg:justify-center xl:justify-start ${connectionStatus.color} ${connectionStatus.pulse}`}>
+          <Badge className={`w-full justify-start ${connectionStatus.color} ${connectionStatus.pulse}`}>
             <connectionStatus.icon className="w-3 h-3 mr-2" />
-            <span className="lg:hidden xl:inline">{connectionStatus.text}</span>
+            <span>{connectionStatus.text}</span>
           </Badge>
         </div>
 
@@ -184,7 +184,7 @@ export function PhantomNavigator({
                 className={`
                   w-full h-auto py-4 px-3 
                   flex items-center gap-3 
-                  lg:justify-center xl:justify-start
+                  justify-start
                   ${tab.color}
                   ${isActive ? 'bg-purple-600 text-white' : ''}
                   transition-all duration-200
@@ -197,7 +197,7 @@ export function PhantomNavigator({
                 }}
               >
                 <tab.icon className="w-5 h-5 flex-shrink-0" />
-                <div className="lg:hidden xl:block text-left flex-1 min-w-0">
+                <div className="text-left flex-1 min-w-0">
                   <div className="font-medium text-sm leading-none">
                     {tab.label}
                   </div>
@@ -206,7 +206,7 @@ export function PhantomNavigator({
                   </div>
                 </div>
                 {isActive && (
-                  <div className="lg:hidden xl:block w-2 h-2 bg-purple-400 rounded-full flex-shrink-0" />
+                  <div className="w-2 h-2 bg-purple-400 rounded-full flex-shrink-0" />
                 )}
               </Button>
             );
@@ -218,10 +218,10 @@ export function PhantomNavigator({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full lg:w-auto lg:mx-auto xl:w-full text-gray-400 hover:text-gray-300"
+            className="w-full text-gray-400 hover:text-gray-300"
           >
-            <Settings className="w-4 h-4 lg:mr-0 xl:mr-2" />
-            <span className="lg:hidden xl:inline">System Config</span>
+            <Settings className="w-4 h-4 mr-2" />
+            <span>System Config</span>
           </Button>
         </div>
       </div>
