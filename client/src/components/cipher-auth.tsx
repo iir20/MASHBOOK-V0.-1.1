@@ -184,19 +184,24 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
   // Register mutation
   const registerMutation = useMutation({
     mutationFn: async (userData: InsertUser) => {
-      return apiRequest('/api/users', {
+      console.log('Making API request with data:', userData);
+      const response = await apiRequest('/api/users', {
         method: 'POST',
         body: userData
       });
+      console.log('API response:', response);
+      return response;
     },
     onSuccess: (user) => {
+      console.log('Registration successful:', user);
       toast({
         title: "Registration Successful",
         description: `Welcome to the mesh network, ${user.alias}`,
       });
       onUserAuthenticated(user, deviceId);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Registration mutation error:', error);
       toast({
         title: "Registration Failed",
         description: "Failed to create user account. Please try again.",
@@ -218,6 +223,17 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
   };
 
   const handleRegister = async () => {
+    console.log('Registration starting...', { deviceId, alias: formData.alias });
+    
+    if (!deviceId) {
+      toast({
+        title: "Device Error",
+        description: "Device ID not generated. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!formData.alias.trim()) {
       toast({
         title: "Validation Error",
@@ -227,22 +243,39 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
       return;
     }
 
-    const keys = await generateCryptoKeys();
-    if (!keys) return;
+    try {
+      const keys = await generateCryptoKeys();
+      if (!keys) {
+        toast({
+          title: "Encryption Error",
+          description: "Failed to generate cryptographic keys",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const userData: InsertUser = {
-      alias: formData.alias,
-      profile: formData.profile,
-      avatar: '',
-      deviceId,
-      publicKey: keys.publicKey,
-      privateKeyEncrypted: keys.privateKey, // In real app, this should be encrypted
-      meshCallsign: generateCallsign(formData.alias),
-      securityLevel: formData.securityLevel,
-      nodeCapabilities: formData.nodeCapabilities
-    };
+      const userData: InsertUser = {
+        alias: formData.alias,
+        profile: formData.profile || '',
+        avatar: '',
+        deviceId,
+        publicKey: keys.publicKey,
+        privateKeyEncrypted: keys.privateKey,
+        meshCallsign: generateCallsign(formData.alias),
+        securityLevel: formData.securityLevel,
+        nodeCapabilities: formData.nodeCapabilities
+      };
 
-    registerMutation.mutate(userData);
+      console.log('Sending registration data:', userData);
+      registerMutation.mutate(userData);
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        title: "Registration Error",
+        description: "An unexpected error occurred during registration",
+        variant: "destructive",
+      });
+    }
   };
 
   const toggleCapability = (capability: string) => {
