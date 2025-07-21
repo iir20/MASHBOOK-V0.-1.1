@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Wifi,
-  WifiOff
+  WifiOff,
+  Sparkles
 } from 'lucide-react';
 
 interface NavigationTab {
@@ -84,6 +85,13 @@ export function PhantomNavigator({
       label: 'Nexus Profile', 
       description: 'Identity & node configuration',
       color: 'text-yellow-400 hover:bg-yellow-900/20 data-[state=active]:bg-yellow-600'
+    },
+    { 
+      id: 'stories', 
+      icon: Sparkles, 
+      label: 'Phantom Stories', 
+      description: 'Ephemeral content & sharing',
+      color: 'text-emerald-400 hover:bg-emerald-900/20 data-[state=active]:bg-emerald-600'
     }
   ];
 

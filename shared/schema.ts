@@ -90,6 +90,16 @@ export const insertMeshNodeSchema = createInsertSchema(meshNodes).pick({
   isActive: true,
 });
 
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type Story = typeof stories.$inferSelect;
+export type InsertStory = z.infer<typeof insertStorySchema>;
+export type MeshNode = typeof meshNodes.$inferSelect;
+export type InsertMeshNode = z.infer<typeof insertMeshNodeSchema>;
+
 export const insertStorySchema = createInsertSchema(stories).pick({
   userId: true,
   title: true,
@@ -98,12 +108,12 @@ export const insertStorySchema = createInsertSchema(stories).pick({
   expiresAt: true,
 });
 
+export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
-export type User = typeof users.$inferSelect;
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
-export type InsertMeshNode = z.infer<typeof insertMeshNodeSchema>;
-export type MeshNode = typeof meshNodes.$inferSelect;
-export type InsertStory = z.infer<typeof insertStorySchema>;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Story = typeof stories.$inferSelect;
+export type InsertStory = z.infer<typeof insertStorySchema>;
+export type MeshNode = typeof meshNodes.$inferSelect;
+export type InsertMeshNode = z.infer<typeof insertMeshNodeSchema>;

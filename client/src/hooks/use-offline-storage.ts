@@ -1,90 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { User, Message, Story } from '@shared/schema';
 
-export interface OfflineMessage {
-  id: string;
-  content: string;
-  timestamp: number;
-  fromUserId: string;
-  toUserId?: string;
-  isEncrypted: boolean;
-  status: 'pending' | 'sent' | 'failed';
-}
-
-export interface OfflineUser {
-  id: string;
-  username: string;
-  lastSeen: number;
-  publicKey?: string;
-  walletAddress?: string;
-  isOnline: boolean;
-}
-
-export interface OfflineFileTransfer {
-  id: string;
-  fileName: string;
-  fileSize: number;
-  progress: number;
-  status: 'pending' | 'transferring' | 'completed' | 'failed';
-  fromUserId: string;
-  toUserId: string;
-  timestamp: number;
+interface OfflineData {
+  users: User[];
+  messages: Message[];
+  stories: Story[];
+  lastSync: number;
 }
 
 const STORAGE_KEYS = {
-  MESSAGES: 'mesh_offline_messages',
-  USERS: 'mesh_offline_users',
-  FILES: 'mesh_offline_files',
-  KEYS: 'mesh_crypto_keys',
-  SETTINGS: 'mesh_settings'
+  USERS: 'meshbook_offline_users',
+  MESSAGES: 'meshbook_offline_messages', 
+  STORIES: 'meshbook_offline_stories',
+  LAST_SYNC: 'meshbook_last_sync'
 };
 
 export function useOfflineStorage() {
-  const [messages, setMessages] = useState<OfflineMessage[]>([]);
-  const [users, setUsers] = useState<OfflineUser[]>([]);
-  const [fileTransfers, setFileTransfers] = useState<OfflineFileTransfer[]>([]);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineData, setOfflineData] = useState<OfflineData>({
+    users: [],
+    messages: [],
+    stories: [],
+    lastSync: 0
+  });
 
-  // Load data from localStorage on mount
+  // Monitor online status
   useEffect(() => {
-    const loadFromStorage = () => {
-      try {
-        const storedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-        const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
-        const storedFiles = localStorage.getItem(STORAGE_KEYS.FILES);
-
-        if (storedMessages) {
-          setMessages(JSON.parse(storedMessages));
-        }
-        if (storedUsers) {
-          setUsers(JSON.parse(storedUsers));
-        }
-        if (storedFiles) {
-          setFileTransfers(JSON.parse(storedFiles));
-        }
-      } catch (error) {
-        console.error('Error loading offline data:', error);
-      }
-    };
-
-    loadFromStorage();
-  }, []);
-
-  // Monitor online/offline status
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOfflineMode(false);
-      syncPendingData();
-    };
-
-    const handleOffline = () => {
-      setIsOfflineMode(true);
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Set initial state
-    setIsOfflineMode(!navigator.onLine);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -92,228 +38,120 @@ export function useOfflineStorage() {
     };
   }, []);
 
-  // Save messages to localStorage
-  const saveMessages = useCallback((newMessages: OfflineMessage[]) => {
+  // Load offline data on mount
+  useEffect(() => {
+    loadOfflineData();
+  }, []);
+
+  const loadOfflineData = useCallback(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(newMessages));
-      setMessages(newMessages);
+      const users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+      const messages = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES) || '[]');
+      const stories = JSON.parse(localStorage.getItem(STORAGE_KEYS.STORIES) || '[]');
+      const lastSync = parseInt(localStorage.getItem(STORAGE_KEYS.LAST_SYNC) || '0');
+
+      setOfflineData({ users, messages, stories, lastSync });
     } catch (error) {
-      console.error('Error saving messages:', error);
+      console.error('Error loading offline data:', error);
     }
   }, []);
 
-  // Save users to localStorage
-  const saveUsers = useCallback((newUsers: OfflineUser[]) => {
+  const saveToOffline = useCallback((type: keyof OfflineData, data: any[]) => {
     try {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(newUsers));
-      setUsers(newUsers);
+      const storageKey = type === 'users' ? STORAGE_KEYS.USERS :
+                        type === 'messages' ? STORAGE_KEYS.MESSAGES :
+                        STORAGE_KEYS.STORIES;
+      
+      localStorage.setItem(storageKey, JSON.stringify(data));
+      localStorage.setItem(STORAGE_KEYS.LAST_SYNC, Date.now().toString());
+      
+      setOfflineData(prev => ({
+        ...prev,
+        [type]: data,
+        lastSync: Date.now()
+      }));
     } catch (error) {
-      console.error('Error saving users:', error);
+      console.error('Error saving to offline storage:', error);
     }
   }, []);
 
-  // Save file transfers to localStorage
-  const saveFileTransfers = useCallback((newFiles: OfflineFileTransfer[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(newFiles));
-      setFileTransfers(newFiles);
-    } catch (error) {
-      console.error('Error saving files:', error);
-    }
-  }, []);
+  const addOfflineMessage = useCallback((message: Message) => {
+    const messages = [...offlineData.messages, message];
+    saveToOffline('messages', messages);
+  }, [offlineData.messages, saveToOffline]);
 
-  // Add a new message (offline-first)
-  const addMessage = useCallback((message: Omit<OfflineMessage, 'id' | 'timestamp' | 'status'>) => {
-    const newMessage: OfflineMessage = {
-      ...message,
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      status: isOfflineMode ? 'pending' : 'sent'
-    };
+  const addOfflineStory = useCallback((story: Story) => {
+    const stories = [...offlineData.stories, story];
+    saveToOffline('stories', stories);
+  }, [offlineData.stories, saveToOffline]);
 
-    const updatedMessages = [...messages, newMessage];
-    saveMessages(updatedMessages);
-    return newMessage;
-  }, [messages, isOfflineMode, saveMessages]);
-
-  // Add or update a user
-  const addOrUpdateUser = useCallback((user: Omit<OfflineUser, 'lastSeen'>) => {
-    const updatedUser: OfflineUser = {
-      ...user,
-      lastSeen: Date.now()
-    };
-
-    const existingIndex = users.findIndex(u => u.id === user.id);
-    let updatedUsers;
-
-    if (existingIndex >= 0) {
-      updatedUsers = [...users];
-      updatedUsers[existingIndex] = updatedUser;
-    } else {
-      updatedUsers = [...users, updatedUser];
-    }
-
-    saveUsers(updatedUsers);
-    return updatedUser;
-  }, [users, saveUsers]);
-
-  // Add a file transfer
-  const addFileTransfer = useCallback((transfer: Omit<OfflineFileTransfer, 'id' | 'timestamp'>) => {
-    const newTransfer: OfflineFileTransfer = {
-      ...transfer,
-      id: Date.now().toString(),
-      timestamp: Date.now()
-    };
-
-    const updatedTransfers = [...fileTransfers, newTransfer];
-    saveFileTransfers(updatedTransfers);
-    return newTransfer;
-  }, [fileTransfers, saveFileTransfers]);
-
-  // Update message status
-  const updateMessageStatus = useCallback((messageId: string, status: OfflineMessage['status']) => {
-    const updatedMessages = messages.map(msg => 
-      msg.id === messageId ? { ...msg, status } : msg
+  const updateOfflineUser = useCallback((updatedUser: User) => {
+    const users = offlineData.users.map(user => 
+      user.id === updatedUser.id ? updatedUser : user
     );
-    saveMessages(updatedMessages);
-  }, [messages, saveMessages]);
+    if (!users.find(u => u.id === updatedUser.id)) {
+      users.push(updatedUser);
+    }
+    saveToOffline('users', users);
+  }, [offlineData.users, saveToOffline]);
 
-  // Update file transfer progress
-  const updateFileTransferProgress = useCallback((transferId: string, progress: number, status?: OfflineFileTransfer['status']) => {
-    const updatedTransfers = fileTransfers.map(transfer => 
-      transfer.id === transferId 
-        ? { ...transfer, progress, ...(status && { status }) }
-        : transfer
-    );
-    saveFileTransfers(updatedTransfers);
-  }, [fileTransfers, saveFileTransfers]);
+  const syncWithServer = useCallback(async () => {
+    if (!isOnline) return false;
 
-  // Get pending messages (for sync when back online)
-  const getPendingMessages = useCallback(() => {
-    return messages.filter(msg => msg.status === 'pending');
-  }, [messages]);
-
-  // Get recent users (active in last 24 hours)
-  const getRecentUsers = useCallback(() => {
-    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-    return users.filter(user => user.lastSeen > twentyFourHoursAgo);
-  }, [users]);
-
-  // Sync pending data when back online
-  const syncPendingData = useCallback(async () => {
-    const pendingMessages = getPendingMessages();
-    
-    // Try to send pending messages
-    for (const message of pendingMessages) {
-      try {
-        // Simulate sending message - replace with actual API call
-        await new Promise(resolve => setTimeout(resolve, 100));
-        updateMessageStatus(message.id, 'sent');
-      } catch (error) {
-        console.error('Failed to sync message:', error);
-        updateMessageStatus(message.id, 'failed');
+    try {
+      // Sync users
+      const usersResponse = await fetch('/api/users');
+      if (usersResponse.ok) {
+        const serverUsers = await usersResponse.json();
+        saveToOffline('users', serverUsers);
       }
-    }
-  }, [getPendingMessages, updateMessageStatus]);
 
-  // Store encryption keys
-  const storeKeys = useCallback((keys: { publicKey: string; privateKey: string; walletAddress: string }) => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.KEYS, JSON.stringify(keys));
-    } catch (error) {
-      console.error('Error storing keys:', error);
-    }
-  }, []);
+      // Sync stories
+      const storiesResponse = await fetch('/api/stories');
+      if (storiesResponse.ok) {
+        const serverStories = await storiesResponse.json();
+        saveToOffline('stories', serverStories);
+      }
 
-  // Load encryption keys
-  const loadKeys = useCallback(() => {
-    try {
-      const storedKeys = localStorage.getItem(STORAGE_KEYS.KEYS);
-      return storedKeys ? JSON.parse(storedKeys) : null;
-    } catch (error) {
-      console.error('Error loading keys:', error);
-      return null;
-    }
-  }, []);
+      // Sync messages
+      const messagesResponse = await fetch('/api/messages');
+      if (messagesResponse.ok) {
+        const serverMessages = await messagesResponse.json();
+        saveToOffline('messages', serverMessages);
+      }
 
-  // Store app settings
-  const storeSettings = useCallback((settings: any) => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      return true;
     } catch (error) {
-      console.error('Error storing settings:', error);
+      console.error('Sync error:', error);
+      return false;
     }
-  }, []);
+  }, [isOnline, saveToOffline]);
 
-  // Load app settings
-  const loadSettings = useCallback(() => {
-    try {
-      const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return storedSettings ? JSON.parse(storedSettings) : {};
-    } catch (error) {
-      console.error('Error loading settings:', error);
-      return {};
-    }
-  }, []);
+  const getPendingSyncItems = useCallback(() => {
+    const now = Date.now();
+    const pendingMessages = offlineData.messages.filter(m => 
+      (m.timestamp as any) > offlineData.lastSync
+    );
+    const pendingStories = offlineData.stories.filter(s => 
+      (s.createdAt as any) > offlineData.lastSync
+    );
 
-  // Clear all offline data
-  const clearOfflineData = useCallback(() => {
-    try {
-      Object.values(STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key);
-      });
-      setMessages([]);
-      setUsers([]);
-      setFileTransfers([]);
-    } catch (error) {
-      console.error('Error clearing offline data:', error);
-    }
-  }, []);
-
-  // Calculate storage usage
-  const getStorageUsage = useCallback(() => {
-    try {
-      let totalSize = 0;
-      Object.values(STORAGE_KEYS).forEach(key => {
-        const item = localStorage.getItem(key);
-        if (item) {
-          totalSize += new Blob([item]).size;
-        }
-      });
-      return totalSize;
-    } catch (error) {
-      console.error('Error calculating storage usage:', error);
-      return 0;
-    }
-  }, []);
+    return {
+      messages: pendingMessages,
+      stories: pendingStories,
+      count: pendingMessages.length + pendingStories.length
+    };
+  }, [offlineData]);
 
   return {
-    // State
-    messages,
-    users,
-    fileTransfers,
-    isOfflineMode,
-    
-    // Actions
-    addMessage,
-    addOrUpdateUser,
-    addFileTransfer,
-    updateMessageStatus,
-    updateFileTransferProgress,
-    
-    // Getters
-    getPendingMessages,
-    getRecentUsers,
-    
-    // Sync
-    syncPendingData,
-    
-    // Storage
-    storeKeys,
-    loadKeys,
-    storeSettings,
-    loadSettings,
-    clearOfflineData,
-    getStorageUsage
+    isOnline,
+    offlineData,
+    loadOfflineData,
+    saveToOffline,
+    addOfflineMessage,
+    addOfflineStory,
+    updateOfflineUser,
+    syncWithServer,
+    getPendingSyncItems
   };
 }

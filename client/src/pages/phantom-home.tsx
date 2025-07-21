@@ -3,10 +3,15 @@ import { CipherAuth } from '@/components/cipher-auth';
 import { PhantomNavigator } from '@/components/phantom-navigator';
 import { NeuralInterface } from '@/components/neural-interface';
 import { QuantumTerminal } from '@/components/quantum-terminal';
-import { CipherProfile } from '@/components/cipher-profile';
+import { RealCipherProfile } from '@/components/real-cipher-profile';
+import { RealStoriesManager } from '@/components/real-stories-manager';
+import { EnhancedRealBluetoothScanner } from '@/components/enhanced-real-bluetooth-scanner';
+import { RealCipherVault } from '@/components/real-cipher-vault';
+import { RealNetworkMonitor } from '@/components/real-network-monitor';
 import { PhantomLink } from '@/components/phantom-link';
 import { useSimpleWebRTC } from '@/hooks/use-simple-webrtc';
 import { useAdvancedMesh } from '@/hooks/use-advanced-mesh';
+import { useOfflineStorage } from '@/hooks/use-offline-storage';
 import type { User } from '@shared/schema';
 
 export default function PhantomHome() {
@@ -15,6 +20,7 @@ export default function PhantomHome() {
   const [activeTab, setActiveTab] = useState('neural');
   const { isConnected } = useSimpleWebRTC(currentUser?.id.toString() || 'guest');
   const meshHook = useAdvancedMesh(currentUser?.meshCallsign || 'guest');
+  const offlineStorage = useOfflineStorage();
 
   const handleUserAuthenticated = (user: User, userDeviceId: string) => {
     setCurrentUser(user);
@@ -59,81 +65,33 @@ export default function PhantomHome() {
         );
       case 'cipher':
         return (
-          <div className="w-full max-w-4xl mx-auto p-3 sm:p-4 lg:p-6">
-            <div className="text-center mb-4 sm:mb-6">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                Cipher Vault Security Center
-              </h1>
-              <p className="text-gray-400 mt-2 text-sm sm:text-base">Advanced cryptographic key management and security protocols</p>
-            </div>
-            {/* Placeholder for security features */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-              <div className="p-3 sm:p-4 lg:p-6 border border-cyan-500/30 rounded-lg bg-cyan-900/10 text-center">
-                <h3 className="text-lg sm:text-xl font-bold text-cyan-400 mb-2">Quantum Encryption</h3>
-                <p className="text-gray-400 text-sm sm:text-base">AES-256-GCM with quantum-resistant algorithms</p>
-              </div>
-              <div className="p-3 sm:p-4 lg:p-6 border border-purple-500/30 rounded-lg bg-purple-900/10 text-center">
-                <h3 className="text-lg sm:text-xl font-bold text-purple-400 mb-2">Neural Firewall</h3>
-                <p className="text-gray-400 text-sm sm:text-base">AI-powered threat detection and prevention</p>
-              </div>
-              <div className="p-3 sm:p-4 lg:p-6 border border-green-500/30 rounded-lg bg-green-900/10 text-center">
-                <h3 className="text-lg sm:text-xl font-bold text-green-400 mb-2">Void Protocol</h3>
-                <p className="text-gray-400 text-sm sm:text-base">Anonymous routing through mesh network</p>
-              </div>
-            </div>
-          </div>
+          <RealCipherVault 
+            user={currentUser}
+          />
         );
       case 'phantom':
         return (
-          <PhantomLink 
-            nodeId={currentUser.id.toString()}
-            onDeviceConnect={(device) => console.log('Device connected:', device)}
-            onDeviceDisconnect={(deviceId) => console.log('Device disconnected:', deviceId)}
+          <EnhancedRealBluetoothScanner 
+            onDeviceDetected={(device) => console.log('Real device detected:', device)}
+            onScanStateChange={(isScanning) => console.log('Scan state:', isScanning)}
           />
         );
       case 'void':
         return (
-          <div className="w-full max-w-4xl mx-auto p-3 sm:p-4 lg:p-6">
-            <div className="text-center mb-4 sm:mb-6">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-                Void Analytics Network
-              </h1>
-              <p className="text-gray-400 mt-2 text-sm sm:text-base">Real-time mesh network performance monitoring and analytics</p>
-            </div>
-            {/* Placeholder for analytics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-              <div className="p-4 border border-pink-500/30 rounded-lg bg-pink-900/10 text-center">
-                <div className="text-2xl font-bold text-pink-400">
-                  {meshHook.networkMetrics?.currentStatus?.activeNodes || 0}
-                </div>
-                <div className="text-sm text-gray-400">Active Nodes</div>
-              </div>
-              <div className="p-4 border border-purple-500/30 rounded-lg bg-purple-900/10 text-center">
-                <div className="text-2xl font-bold text-purple-400">
-                  {Math.round(meshHook.networkMetrics?.currentStatus?.averageLatency || 0)}ms
-                </div>
-                <div className="text-sm text-gray-400">Avg Latency</div>
-              </div>
-              <div className="p-4 border border-cyan-500/30 rounded-lg bg-cyan-900/10 text-center">
-                <div className="text-2xl font-bold text-cyan-400">
-                  {Math.round(meshHook.networkMetrics?.currentStatus?.bandwidth || 0)}
-                </div>
-                <div className="text-sm text-gray-400">Bandwidth</div>
-              </div>
-              <div className="p-4 border border-green-500/30 rounded-lg bg-green-900/10 text-center">
-                <div className="text-2xl font-bold text-green-400">
-                  {meshHook.networkMetrics?.currentStatus?.networkHealth || 'Unknown'}
-                </div>
-                <div className="text-sm text-gray-400">Network Health</div>
-              </div>
-            </div>
-          </div>
+          <RealNetworkMonitor />
         );
       case 'nexus':
         return (
-          <CipherProfile 
+          <RealCipherProfile 
             user={currentUser}
             onProfileUpdate={handleProfileUpdate}
+          />
+        );
+      case 'stories':
+        return (
+          <RealStoriesManager 
+            userId={currentUser.id}
+            currentUser={currentUser}
           />
         );
       default:
