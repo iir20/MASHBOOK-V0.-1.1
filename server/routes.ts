@@ -19,6 +19,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const fileTransferManager = new FileTransferManager();
   const networkAnalytics = new NetworkAnalytics();
   
+  // Store WebSocket connections
+  const connections = new Map<string, WebSocket>();
+  
   // WebSocket server for WebRTC signaling with improved connection handling
   const wss = new WebSocketServer({ 
     server: httpServer, 
@@ -199,8 +202,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nodes = meshRouter.getNodes();
       const nodeMetrics = {};
       
-      for (const [nodeId] of nodes) {
-        nodeMetrics[nodeId] = networkAnalytics.getNodeMetrics(nodeId, 10);
+      for (const [nodeId] of Array.from(nodes.entries())) {
+        (nodeMetrics as any)[nodeId] = networkAnalytics.getNodeMetrics(nodeId, 10);
       }
       
       res.json({

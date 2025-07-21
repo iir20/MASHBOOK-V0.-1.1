@@ -13,7 +13,7 @@ export default function PhantomHome() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [deviceId, setDeviceId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('neural');
-  const { isConnected } = useSimpleWebRTC();
+  const { isConnected } = useSimpleWebRTC(currentUser?.id.toString() || 'guest');
   const meshHook = useAdvancedMesh(currentUser?.meshCallsign || 'guest');
 
   const handleUserAuthenticated = (user: User, userDeviceId: string) => {

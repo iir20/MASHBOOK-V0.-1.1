@@ -36,6 +36,8 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [deviceId, setDeviceId] = useState('');
   const [showKeys, setShowKeys] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [generatedKeys, setGeneratedKeys] = useState<{ publicKey: string; privateKey: string } | null>(null);
   const [formData, setFormData] = useState<AuthFormData>({
     alias: '',
@@ -59,7 +61,7 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
     'cipher-node'
   ];
 
-  // Generate device fingerprint
+  // Generate device fingerprint and check for persistent login
   useEffect(() => {
     const generateDeviceId = async () => {
       try {
@@ -79,18 +81,34 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
           new Date().getTimezoneOffset(),
           canvas.toDataURL(),
           navigator.hardwareConcurrency || 0,
-          navigator.deviceMemory || 0
+          (navigator as any).deviceMemory || 0
         ].join('|');
         
         // Create hash of fingerprint
         const encoder = new TextEncoder();
         const data = encoder.encode(fingerprint);
         const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        const hashArray = new Uint8Array(hashBuffer);
+        const hashHex = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
         
         const deviceIdGenerated = `device_${hashHex.substring(0, 12)}_${Date.now().toString(36)}`;
         setDeviceId(deviceIdGenerated);
+
+        // Check for persistent login
+        const savedUser = localStorage.getItem('meshbook_user');
+        const savedDeviceId = localStorage.getItem('meshbook_device_id');
+        
+        if (savedUser && savedDeviceId && savedDeviceId === deviceIdGenerated) {
+          try {
+            const user = JSON.parse(savedUser) as UserType;
+            console.log('Found saved user, attempting auto-login:', user.alias);
+            onUserAuthenticated(user, savedDeviceId);
+          } catch (error) {
+            console.error('Failed to parse saved user data:', error);
+            localStorage.removeItem('meshbook_user');
+            localStorage.removeItem('meshbook_device_id');
+          }
+        }
       } catch (error) {
         console.error('Failed to generate device ID:', error);
         setDeviceId(`device_fallback_${Date.now()}`);
@@ -98,7 +116,7 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
     };
 
     generateDeviceId();
-  }, []);
+  }, [onUserAuthenticated]);
 
   // Generate cryptographic keys
   const generateCryptoKeys = async () => {
@@ -138,7 +156,8 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
   };
 
   const arrayBufferToPem = (buffer: ArrayBuffer, label: string) => {
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const uint8Array = new Uint8Array(buffer);
+    const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
     const formatted = base64.match(/.{1,64}/g)?.join('\n') || base64;
     return `-----BEGIN ${label}-----\n${formatted}\n-----END ${label}-----`;
   };
@@ -160,21 +179,29 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
     mutationFn: async () => {
       const response = await fetch(`/api/users/device/${deviceId}`);
       if (!response.ok) {
-        throw new Error('User not found');
+        if (response.status === 404) {
+          throw new Error('No user found for this device. Please register first.');
+        }
+        throw new Error('Authentication failed. Please try again.');
       }
       return response.json() as Promise<UserType>;
     },
-    onSuccess: (user) => {
+    onSuccess: (user: UserType) => {
+      // Save user to localStorage for persistent login
+      localStorage.setItem('meshbook_user', JSON.stringify(user));
+      localStorage.setItem('meshbook_device_id', deviceId);
+      
       toast({
         title: "Authentication Successful",
         description: `Welcome back, ${user.alias}`,
       });
       onUserAuthenticated(user, deviceId);
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Login error:', error);
       toast({
         title: "Authentication Failed",
-        description: "No existing user found for this device. Please register.",
+        description: error.message || "No existing user found for this device. Please register.",
         variant: "destructive",
       });
       setMode('register');
@@ -192,19 +219,25 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
       console.log('API response:', response);
       return response;
     },
-    onSuccess: (user) => {
+    onSuccess: (user: UserType) => {
       console.log('Registration successful:', user);
+      
+      // Save user to localStorage for persistent login
+      localStorage.setItem('meshbook_user', JSON.stringify(user));
+      localStorage.setItem('meshbook_device_id', deviceId);
+      
       toast({
         title: "Registration Successful",
         description: `Welcome to the mesh network, ${user.alias}`,
       });
       onUserAuthenticated(user, deviceId);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Registration mutation error:', error);
+      const errorMessage = error.message || "Failed to create user account. Please try again.";
       toast({
         title: "Registration Failed",
-        description: "Failed to create user account. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -360,14 +393,27 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
                   <p className="text-gray-400 text-sm mb-4">
                     Your device identity will be verified against the mesh network database
                   </p>
+                  {/* Live Authentication Status */}
+                  {loginMutation.isPending && (
+                    <div className="mb-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Shield className="w-5 h-5 text-purple-400 animate-pulse" />
+                        <div>
+                          <div className="text-sm font-medium text-purple-400">Authenticating Device</div>
+                          <div className="text-xs text-gray-400">Verifying identity against mesh network...</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <Button 
                     onClick={handleLogin}
                     disabled={loginMutation.isPending || !deviceId}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-sm lg:text-base py-3 lg:py-2"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-sm lg:text-base py-3 lg:py-2 disabled:opacity-50 transition-all"
                   >
                     {loginMutation.isPending ? (
                       <>
-                        <Cpu className="w-4 h-4 mr-2 animate-pulse" />
+                        <Cpu className="w-4 h-4 mr-2 animate-spin" />
                         <span className="hidden lg:inline">Authenticating...</span>
                         <span className="lg:hidden">Auth...</span>
                       </>
@@ -390,13 +436,54 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
                   <label className="text-xs lg:text-sm font-medium text-gray-300">Node Alias</label>
                   <Input
                     value={formData.alias}
-                    onChange={(e) => setFormData(prev => ({ ...prev, alias: e.target.value }))}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData(prev => ({ ...prev, alias: value }));
+                      // Clear any previous error messages when user starts typing
+                      if (value.trim()) {
+                        e.target.setCustomValidity('');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Validate on blur
+                      if (!e.target.value.trim()) {
+                        e.target.setCustomValidity('Alias is required');
+                      } else if (e.target.value.length < 2) {
+                        e.target.setCustomValidity('Alias must be at least 2 characters');
+                      } else if (e.target.value.length > 20) {
+                        e.target.setCustomValidity('Alias must be less than 20 characters');
+                      } else {
+                        e.target.setCustomValidity('');
+                      }
+                    }}
                     placeholder="Enter your alias..."
-                    className="mt-1 bg-gray-900 border-gray-600 text-gray-300 text-sm lg:text-base"
+                    className={`mt-1 bg-gray-900 border-gray-600 text-gray-300 text-sm lg:text-base transition-colors ${
+                      !formData.alias.trim() && formData.alias !== '' 
+                        ? 'border-red-500 focus:border-red-400' 
+                        : formData.alias.trim() 
+                          ? 'border-green-500 focus:border-green-400' 
+                          : 'border-gray-600'
+                    }`}
+                    maxLength={20}
+                    required
                   />
-                  {!formData.alias && (
-                    <p className="text-xs text-red-400 mt-1">Alias is required</p>
-                  )}
+                  {/* Live validation feedback */}
+                  {formData.alias === '' ? (
+                    <p className="text-xs text-red-400 mt-1 flex items-center">
+                      <span className="w-1 h-1 bg-red-400 rounded-full mr-2"></span>
+                      Alias is required
+                    </p>
+                  ) : formData.alias.length < 2 ? (
+                    <p className="text-xs text-yellow-400 mt-1 flex items-center">
+                      <span className="w-1 h-1 bg-yellow-400 rounded-full mr-2"></span>
+                      At least 2 characters needed
+                    </p>
+                  ) : formData.alias.length >= 2 ? (
+                    <p className="text-xs text-green-400 mt-1 flex items-center">
+                      <span className="w-1 h-1 bg-green-400 rounded-full mr-2"></span>
+                      Valid alias
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <label className="text-xs lg:text-sm font-medium text-gray-300">Security Level</label>
@@ -420,9 +507,18 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
                   value={formData.profile}
                   onChange={(e) => setFormData(prev => ({ ...prev, profile: e.target.value }))}
                   placeholder="Describe your role in the mesh network..."
-                  className="mt-1 bg-gray-900 border-gray-600 text-gray-300 text-sm lg:text-base"
+                  className={`mt-1 bg-gray-900 border-gray-600 text-gray-300 text-sm lg:text-base transition-colors ${
+                    formData.profile.length > 200 ? 'border-yellow-500' : ''
+                  }`}
                   rows={3}
+                  maxLength={250}
                 />
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-gray-500">Optional: Brief description of your node</p>
+                  <p className={`text-xs ${formData.profile.length > 200 ? 'text-yellow-400' : 'text-gray-500'}`}>
+                    {formData.profile.length}/250
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -488,14 +584,32 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
                 </Card>
               )}
 
+              {/* Live Registration Status */}
+              {registerMutation.isPending && (
+                <Card className="border-cyan-500/30 bg-cyan-900/10 mb-4">
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-3">
+                      <Cpu className="w-5 h-5 text-cyan-400 animate-spin" />
+                      <div>
+                        <div className="text-sm font-medium text-cyan-400">Processing Registration</div>
+                        <div className="text-xs text-gray-400">Generating keys and establishing connection...</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 bg-gray-800 rounded-full h-2">
+                      <div className="bg-cyan-500 h-2 rounded-full animate-pulse" style={{ width: '75%' }}></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Button 
                 onClick={handleRegister}
-                disabled={registerMutation.isPending || !formData.alias.trim()}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-sm lg:text-base py-3 lg:py-2"
+                disabled={registerMutation.isPending || !formData.alias.trim() || formData.alias.length < 2}
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-sm lg:text-base py-3 lg:py-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {registerMutation.isPending ? (
                   <>
-                    <Cpu className="w-4 h-4 mr-2 animate-pulse" />
+                    <Cpu className="w-4 h-4 mr-2 animate-spin" />
                     <span className="hidden lg:inline">Joining Network...</span>
                     <span className="lg:hidden">Joining...</span>
                   </>
@@ -509,6 +623,59 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
               </Button>
             </div>
           )}
+
+          {/* About MeshBook Section */}
+          <Card className="border-blue-500/30 bg-blue-900/10 mt-4">
+            <CardContent className="p-4">
+              <Button
+                variant="ghost"
+                onClick={() => setShowAbout(!showAbout)}
+                className="w-full text-left p-0 h-auto text-blue-400 hover:text-blue-300 hover:bg-transparent"
+              >
+                <div className="flex items-center text-sm">
+                  <span className="text-lg mr-2">ℹ️</span>
+                  <span>Why MeshBook?</span>
+                </div>
+              </Button>
+              
+              {showAbout && (
+                <div className="mt-3 space-y-3 text-xs lg:text-sm">
+                  <p className="text-gray-300">
+                    <strong className="text-blue-400">MeshBook</strong> is a decentralized messaging app built for{' '}
+                    <em className="text-cyan-300">crisis communication</em>,{' '}
+                    <em className="text-cyan-300">offline chatting</em>, and{' '}
+                    <em className="text-cyan-300">freedom of speech</em>.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-green-400 flex-shrink-0 mt-0.5">🛰️</span>
+                      <span className="text-gray-400">Works without internet using P2P (WebRTC)</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-purple-400 flex-shrink-0 mt-0.5">🔐</span>
+                      <span className="text-gray-400">Secure by design (End-to-end encrypted)</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-orange-400 flex-shrink-0 mt-0.5">⚠️</span>
+                      <span className="text-gray-400">Emergency use: disaster zones, censored networks</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-red-400 flex-shrink-0 mt-0.5">📉</span>
+                      <span className="text-gray-400">Limitations: NAT/firewall restrictions, offline cache size</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-gray-700">
+                    <div className="text-gray-500 text-xs">
+                      <div>• Your identity is tied to this device</div>
+                      <div>• End-to-end encryption is automatically enabled</div>
+                      <div>• No personal information required</div>
+                      <div>• Works in offline mesh networks</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     </div>
