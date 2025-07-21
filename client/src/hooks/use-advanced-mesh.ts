@@ -147,7 +147,7 @@ export function useAdvancedMesh(nodeId: string) {
     
     // Prevent rapid reconnections
     const now = Date.now();
-    if (now - connectionRef.current.lastConnectionTime < 5000) {
+    if (now - connectionRef.current.lastConnectionTime < 2000) {
       return;
     }
     

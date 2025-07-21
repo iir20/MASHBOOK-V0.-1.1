@@ -52,7 +52,9 @@
     @apply font-sans antialiased bg-background text-foreground;
     background: linear-gradient(135deg, var(--cyber-dark) 0%, var(--cyber-dark-alt) 100%);
     color: var(--foreground);
-    overflow: hidden;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   
   * {

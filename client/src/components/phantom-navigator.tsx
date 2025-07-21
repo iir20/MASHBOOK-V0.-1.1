@@ -116,47 +116,39 @@ export function PhantomNavigator({
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="bg-black/80 border border-purple-500/30 text-purple-400 hover:bg-purple-900/20 backdrop-blur-sm"
-        >
-          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+      {/* Mobile Bottom Navigation */}
+      <div className="lg:hidden w-full p-2 bg-black/95 border-t border-purple-500/30 backdrop-blur-sm">
+        <div className="flex justify-around items-center">
+          {navigationTabs.slice(0, 5).map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <Button
+                key={tab.id}
+                variant="ghost"
+                size="sm"
+                onClick={() => onTabChange(tab.id)}
+                className={`flex-1 flex flex-col items-center gap-1 p-2 h-auto ${
+                  isActive ? 'bg-purple-600/30 text-purple-300' : 'text-gray-400 hover:text-purple-400'
+                } transition-colors`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-xs truncate max-w-[60px]">{tab.label.split(' ')[0]}</span>
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Navigation Sidebar */}
-      <div className={`
-        fixed lg:relative
-        top-0 left-0 h-full
-        w-80 lg:w-20 xl:w-80
-        bg-black/95 lg:bg-gray-900/95
-        border-r border-purple-500/30
-        backdrop-blur-sm
-        transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        z-40 lg:z-auto
-        flex flex-col
-      `}>
-        
-        {/* Header */}
-        <div className="p-4 lg:p-6 border-b border-purple-500/30">
+      {/* Desktop Sidebar Navigation */}
+      <div className="hidden lg:flex lg:w-20 xl:w-80 h-full bg-gray-900/95 border-r border-purple-500/30 backdrop-blur-sm flex-col">
+        {/* Header (Desktop Only) */}
+        <div className="p-4 xl:p-6 border-b border-purple-500/30">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-600 via-cyan-600 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
-              <Zap className="w-6 h-6 text-white" />
+            <div className="w-8 h-8 xl:w-12 xl:h-12 bg-gradient-to-br from-purple-600 via-cyan-600 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
+              <Zap className="w-4 h-4 xl:w-6 xl:h-6 text-white" />
             </div>
-            <div>
+            <div className="hidden xl:block">
               <h1 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
                 PHANTOM MESH
               </h1>
@@ -165,11 +157,11 @@ export function PhantomNavigator({
           </div>
         </div>
 
-        {/* Connection Status */}
-        <div className="p-4 lg:p-6">
-          <Badge className={`w-full justify-start ${connectionStatus.color} ${connectionStatus.pulse}`}>
-            <connectionStatus.icon className="w-3 h-3 mr-2" />
-            <span>{connectionStatus.text}</span>
+        {/* Connection Status (Desktop Only) */}
+        <div className="p-4 xl:p-6">
+          <Badge className={`w-full justify-center xl:justify-start ${connectionStatus.color} ${connectionStatus.pulse}`}>
+            <connectionStatus.icon className="w-3 h-3 mr-0 xl:mr-2" />
+            <span className="hidden xl:inline">{connectionStatus.text}</span>
           </Badge>
         </div>
 

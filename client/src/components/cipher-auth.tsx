@@ -321,38 +321,39 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-purple-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg lg:max-w-2xl border-purple-500/30 bg-black/80 backdrop-blur-sm">
-        <CardHeader className="text-center px-4 lg:px-6">
-          <div className="mx-auto w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-600 to-cyan-600 rounded-lg flex items-center justify-center mb-4">
-            <Brain className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
-          </div>
-          <CardTitle className="text-xl lg:text-3xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-            CIPHER AUTH
-          </CardTitle>
-          <p className="text-gray-400 mt-2 text-sm lg:text-base">
-            {mode === 'login' ? 'Access neural mesh' : 'Join quantum collective'}
-          </p>
-        </CardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-purple-900 flex items-start justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-2xl mt-2 sm:mt-8">
+        <Card className="w-full border-purple-500/30 bg-black/80 backdrop-blur-sm">
+          <CardHeader className="text-center px-3 sm:px-4 lg:px-6 py-4">
+            <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-600 to-cyan-600 rounded-lg flex items-center justify-center mb-3">
+              <Brain className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-white" />
+            </div>
+            <CardTitle className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              CIPHER AUTH
+            </CardTitle>
+            <p className="text-gray-400 mt-2 text-xs sm:text-sm lg:text-base">
+              {mode === 'login' ? 'Access neural mesh' : 'Join quantum collective'}
+            </p>
+          </CardHeader>
 
-        <CardContent className="space-y-4 lg:space-y-6 px-4 lg:px-6">
+          <CardContent className="space-y-3 sm:space-y-4 lg:space-y-6 px-3 sm:px-4 lg:px-6 pb-6">
           {/* Device Information */}
           <Card className="border-gray-700 bg-gray-900/50">
-            <CardContent className="p-3 lg:p-4">
-              <div className="flex items-center space-x-3 mb-3">
-                <Fingerprint className="w-4 h-4 lg:w-5 lg:h-5 text-cyan-400" />
-                <span className="font-medium text-cyan-400 text-sm lg:text-base">Device Identity</span>
+            <CardContent className="p-2 sm:p-3 lg:p-4">
+              <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                <Fingerprint className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-cyan-400 flex-shrink-0" />
+                <span className="font-medium text-cyan-400 text-xs sm:text-sm lg:text-base">Device Identity</span>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-gray-400 text-xs lg:text-sm">Device ID</span>
-                  <Badge className="bg-green-900/30 text-green-400 font-mono text-xs max-w-32 lg:max-w-none truncate">
-                    {deviceId ? deviceId.slice(0, 12) + '...' : 'Generating...'}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-400 text-xs sm:text-sm lg:text-sm flex-shrink-0">Device ID</span>
+                  <Badge className="bg-green-900/30 text-green-400 font-mono text-xs truncate max-w-[120px] sm:max-w-[160px] lg:max-w-none">
+                    {deviceId ? deviceId.slice(0, 8) + '...' : 'Generating...'}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-xs lg:text-sm">Quantum Status</span>
-                  <Badge className="bg-purple-900/30 text-purple-400">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-400 text-xs sm:text-sm lg:text-sm flex-shrink-0">Status</span>
+                  <Badge className="bg-purple-900/30 text-purple-400 text-xs">
                     <Lock className="w-3 h-3 mr-1" />
                     SECURED
                   </Badge>
@@ -626,7 +627,7 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
 
           {/* About MeshBook Section */}
           <Card className="border-blue-500/30 bg-blue-900/10 mt-4">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <Button
                 variant="ghost"
                 onClick={() => setShowAbout(!showAbout)}
@@ -676,8 +677,9 @@ export function CipherAuth({ onUserAuthenticated }: CipherAuthProps) {
               )}
             </CardContent>
           </Card>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
