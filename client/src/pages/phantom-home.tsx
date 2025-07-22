@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { AuthSystem } from '@/components/auth-system';
-import { RealCipherProfile } from '@/components/real-cipher-profile';
-import { RealStoriesManager } from '@/components/real-stories-manager';
+import { AdvancedAuthSystem } from '@/components/advanced-auth-system';
+import { AdvancedProfileSystem } from '@/components/advanced-profile-system';
+import { EnhancedStoriesSystem } from '@/components/enhanced-stories-system';
 import { EnhancedSecureVault } from '@/components/enhanced-secure-vault';
-import { EnhancedModernChat } from '@/components/enhanced-modern-chat';
+import { EnhancedMessagingSystem } from '@/components/enhanced-messaging-system';
 import { AboutMeshBook } from '@/components/about-meshbook';
-import { ConnectivityManager } from '@/components/connectivity-manager';
+import { AdvancedConnectivityManager } from '@/components/advanced-connectivity-manager';
 import { MeshNetworkMap } from '@/components/mesh-network-map';
 import { useStableWebSocket, ConnectionStatus } from '@/components/stable-websocket';
 import { Sidebar } from '@/components/sidebar';
@@ -118,7 +118,7 @@ export default function PhantomHome() {
 
   // Show authentication if no user is logged in (except for About page)
   if (!currentUser && activeTab !== 'about') {
-    return <AuthSystem onUserAuthenticated={handleUserAuthenticated} />;
+    return <AdvancedAuthSystem onUserAuthenticated={handleUserAuthenticated} />;
   }
 
   // If no user and accessing About, show About page with option to get started
@@ -135,16 +135,16 @@ export default function PhantomHome() {
     switch (activeTab) {
       case 'profile':
         return currentUser ? (
-          <RealCipherProfile 
-            user={currentUser}
-            onProfileUpdate={handleProfileUpdate}
+          <AdvancedProfileSystem 
+            currentUser={currentUser}
+            onUserUpdate={handleProfileUpdate}
           />
         ) : null;
       case 'stories':
         return currentUser ? (
-          <RealStoriesManager 
-            userId={currentUser.id}
+          <EnhancedStoriesSystem 
             currentUser={currentUser}
+            availableUsers={realUsers}
           />
         ) : null;
       case 'vault':
@@ -156,7 +156,7 @@ export default function PhantomHome() {
         ) : null;
       case 'chat':
         return currentUser ? (
-          <EnhancedModernChat 
+          <EnhancedMessagingSystem 
             currentUser={currentUser}
             availableUsers={realUsers}
             wsState={wsState}
@@ -248,17 +248,17 @@ export default function PhantomHome() {
           />
         );
       case 'connectivity':
-        return (
-          <ConnectivityManager 
+        return currentUser ? (
+          <AdvancedConnectivityManager 
+            currentUser={currentUser}
+            availableUsers={realUsers}
             wsState={{
               isConnected: wsState.isConnected,
               connectionQuality: wsState.connectionQuality,
-              lastConnected: new Date(),
               reconnectAttempts: wsState.reconnectAttempts
             }}
-            onReconnect={wsState.reconnect}
           />
-        );
+        ) : null;
       case 'mesh':
         return currentUser ? (
           <MeshNetworkMap 
