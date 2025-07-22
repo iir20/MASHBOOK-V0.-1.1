@@ -87,13 +87,9 @@ export function FacebookStyleStories({
     mutationFn: async (storyData: InsertStory) => {
       const response = await apiRequest('/api/stories', {
         method: 'POST',
-        body: JSON.stringify(storyData)
+        body: storyData
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || 'Failed to create story');
-      }
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });

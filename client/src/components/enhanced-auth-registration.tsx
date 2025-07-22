@@ -121,8 +121,11 @@ export function EnhancedAuthRegistration({ onLogin, currentUser }: AuthRegistrat
       const publicKey = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
       const privateKey = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
 
-      const publicKeyPem = btoa(String.fromCharCode(...new Uint8Array(publicKey)));
-      const privateKeyPem = btoa(String.fromCharCode(...new Uint8Array(privateKey)));
+      const publicKeyArray = new Uint8Array(publicKey);
+      const privateKeyArray = new Uint8Array(privateKey);
+      
+      const publicKeyPem = btoa(String.fromCharCode.apply(null, Array.from(publicKeyArray)));
+      const privateKeyPem = btoa(String.fromCharCode.apply(null, Array.from(privateKeyArray)));
 
       return { publicKeyPem, privateKeyPem };
     } catch (error) {
@@ -138,13 +141,9 @@ export function EnhancedAuthRegistration({ onLogin, currentUser }: AuthRegistrat
     mutationFn: async (userData: InsertUser) => {
       const response = await apiRequest('/api/users', {
         method: 'POST',
-        body: JSON.stringify(userData)
+        body: userData
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || 'Registration failed');
-      }
-      return response.json();
+      return response;
     },
     onSuccess: (user) => {
       localStorage.setItem('meshbook-user', JSON.stringify(user));

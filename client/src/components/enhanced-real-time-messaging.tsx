@@ -31,7 +31,6 @@ import {
   Heart,
   User as UserIcon,
   ArrowLeft,
-  Online,
   Zap,
   Eye,
   MessageCircle,
@@ -187,12 +186,12 @@ export function EnhancedRealTimeMessaging({
           break;
 
         case 'typing':
-          setTypingUsers(prev => new Set([...prev, data.fromUserId]));
+          setTypingUsers(prev => new Set([...Array.from(prev), data.fromUserId]));
           break;
 
         case 'stop-typing':
           setTypingUsers(prev => {
-            const newSet = new Set(prev);
+            const newSet = new Set(Array.from(prev));
             newSet.delete(data.fromUserId);
             return newSet;
           });
@@ -220,13 +219,9 @@ export function EnhancedRealTimeMessaging({
     mutationFn: async (messageData: InsertMessage) => {
       const response = await apiRequest('/api/messages', {
         method: 'POST',
-        body: JSON.stringify(messageData)
+        body: messageData
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || 'Failed to send message');
-      }
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
@@ -268,8 +263,14 @@ export function EnhancedRealTimeMessaging({
     // Optimistic update
     const optimisticMessage: EnhancedMessage = {
       id: Date.now(),
-      ...messageData,
+      fromUserId: messageData.fromUserId,
+      toUserId: messageData.toUserId,
+      content: messageData.content,
+      encryptedContent: messageData.encryptedContent,
       timestamp: new Date(),
+      messageType: messageData.messageType,
+      isEphemeral: messageData.isEphemeral,
+      meshHops: messageData.meshHops,
       user: currentUser,
       encrypted: isEncrypted,
       status: 'sending',
