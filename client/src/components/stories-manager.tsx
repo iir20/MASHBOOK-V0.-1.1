@@ -89,7 +89,7 @@ export function StoriesManager({ userId, currentUser }: StoriesManagerProps) {
         content: storyData.content,
         userId: currentUser?.id || userId,
         expiresAt: new Date(Date.now() + storyData.expiresInHours * 60 * 60 * 1000),
-        isPublic: storyData.isPublic
+        mediaUrl: null
       };
       
       return apiRequest('/api/stories', {
@@ -334,13 +334,13 @@ export function StoriesManager({ userId, currentUser }: StoriesManagerProps) {
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)] rounded-full flex items-center justify-center">
                             <span className="text-white font-bold text-sm">
-                              {story.userId.toString().slice(-1)}
+                              {story.userId?.toString().slice(-1) || '?'}
                             </span>
                           </div>
                           <div>
                             <h3 className="font-medium text-white">{story.title}</h3>
                             <p className="text-sm text-gray-400">
-                              User {story.userId} • {formatRelativeTime(story.createdAt)}
+                              User {story.userId || 'Unknown'} • {formatRelativeTime(story.createdAt)}
                             </p>
                           </div>
                         </div>
@@ -349,11 +349,7 @@ export function StoriesManager({ userId, currentUser }: StoriesManagerProps) {
                             <Clock className="w-3 h-3 mr-1" />
                             {calculateTimeRemaining(story.expiresAt)}
                           </Badge>
-                          {story.isPublic ? (
-                            <Globe className="w-4 h-4 text-[var(--cyber-cyan)]" />
-                          ) : (
-                            <Lock className="w-4 h-4 text-[var(--cyber-yellow)]" />
-                          )}
+                          <Globe className="w-4 h-4 text-[var(--cyber-cyan)]" />
                         </div>
                       </div>
 

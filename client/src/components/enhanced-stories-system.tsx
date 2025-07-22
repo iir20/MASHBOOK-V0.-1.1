@@ -182,7 +182,7 @@ export function EnhancedStoriesSystem({ currentUser, availableUsers }: EnhancedS
     mutationFn: async (storyData: InsertStory) => {
       return await apiRequest('/api/stories', {
         method: 'POST',
-        body: JSON.stringify(storyData)
+        body: storyData
       });
     },
     onSuccess: (newStory) => {

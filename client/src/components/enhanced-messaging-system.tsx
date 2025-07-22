@@ -191,7 +191,7 @@ export function EnhancedMessagingSystem({
       // First save to database
       const savedMessage = await apiRequest('/api/messages', {
         method: 'POST',
-        body: JSON.stringify(messageData)
+        body: messageData
       });
       
       // Then send via WebSocket for real-time delivery
