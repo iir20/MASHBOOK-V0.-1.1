@@ -52,11 +52,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { InsertUser } from '@shared/schema';
 
 interface AuthRegistrationProps {
-  onLogin: (user: any) => void;
+  onUserAuthenticated: (user: any) => void;
+  onLogout?: () => void;
   currentUser?: any;
 }
 
-export function EnhancedAuthRegistration({ onLogin, currentUser }: AuthRegistrationProps) {
+export function EnhancedAuthRegistration({ onUserAuthenticated, currentUser }: AuthRegistrationProps) {
   const [activeTab, setActiveTab] = useState<'register' | 'login' | 'about'>('about');
   const [formData, setFormData] = useState({
     alias: '',
@@ -147,7 +148,7 @@ export function EnhancedAuthRegistration({ onLogin, currentUser }: AuthRegistrat
     },
     onSuccess: (user) => {
       localStorage.setItem('meshbook-user', JSON.stringify(user));
-      onLogin(user);
+      onUserAuthenticated(user);
       toast({
         title: "Welcome to Meshbook!",
         description: "Your account has been created successfully",
@@ -166,14 +167,11 @@ export function EnhancedAuthRegistration({ onLogin, currentUser }: AuthRegistrat
   const loginMutation = useMutation({
     mutationFn: async (loginData: { alias: string; deviceId: string }) => {
       const response = await apiRequest(`/api/users/device/${loginData.deviceId}`);
-      if (!response.ok) {
-        throw new Error('User not found for this device');
-      }
-      return response.json();
+      return response;
     },
     onSuccess: (user) => {
       localStorage.setItem('meshbook-user', JSON.stringify(user));
-      onLogin(user);
+      onUserAuthenticated(user);
       toast({
         title: "Welcome back!",
         description: "Successfully logged in to Meshbook",
