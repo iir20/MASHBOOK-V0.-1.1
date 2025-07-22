@@ -299,7 +299,7 @@ export function AdvancedAuthSystem({ onUserAuthenticated }: AuthSystemProps) {
     mutationFn: async (userData: InsertUser) => {
       return await apiRequest('/api/users', {
         method: 'POST',
-        body: JSON.stringify(userData)
+        body: userData
       });
     },
     onSuccess: (newUser) => {
