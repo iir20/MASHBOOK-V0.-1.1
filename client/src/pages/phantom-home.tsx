@@ -5,6 +5,8 @@ import { RealStoriesManager } from '@/components/real-stories-manager';
 import { EnhancedSecureVault } from '@/components/enhanced-secure-vault';
 import { EnhancedModernChat } from '@/components/enhanced-modern-chat';
 import { AboutMeshBook } from '@/components/about-meshbook';
+import { ConnectivityManager } from '@/components/connectivity-manager';
+import { MeshNetworkMap } from '@/components/mesh-network-map';
 import { useStableWebSocket, ConnectionStatus } from '@/components/stable-websocket';
 import { Sidebar } from '@/components/sidebar';
 import { Button } from '@/components/ui/button';
@@ -21,7 +23,9 @@ import {
   Wifi,
   WifiOff,
   Activity,
-  BookOpen
+  BookOpen,
+  Radio,
+  Globe
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -58,9 +62,10 @@ export default function PhantomHome() {
   }, []);
 
   // Get all real users from database
-  const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery({
+  const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery<UserType[]>({
     queryKey: ['/api/users'],
-    enabled: !!currentUser
+    enabled: !!currentUser,
+    retry: false
   });
 
   const handleUserAuthenticated = (user: UserType, userDeviceId: string) => {
@@ -129,34 +134,34 @@ export default function PhantomHome() {
   const renderActiveContent = () => {
     switch (activeTab) {
       case 'profile':
-        return (
+        return currentUser ? (
           <RealCipherProfile 
             user={currentUser}
             onProfileUpdate={handleProfileUpdate}
           />
-        );
+        ) : null;
       case 'stories':
-        return (
+        return currentUser ? (
           <RealStoriesManager 
             userId={currentUser.id}
             currentUser={currentUser}
           />
-        );
+        ) : null;
       case 'vault':
-        return (
+        return currentUser ? (
           <EnhancedSecureVault 
             userId={currentUser.id}
             currentUser={currentUser}
           />
-        );
+        ) : null;
       case 'chat':
-        return (
+        return currentUser ? (
           <EnhancedModernChat 
             currentUser={currentUser}
             availableUsers={realUsers}
             wsState={wsState}
           />
-        );
+        ) : null;
       case 'users':
         return (
           <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
@@ -242,6 +247,29 @@ export default function PhantomHome() {
             onGetStarted={() => setActiveTab('profile')}
           />
         );
+      case 'connectivity':
+        return (
+          <ConnectivityManager 
+            wsState={{
+              isConnected: wsState.isConnected,
+              connectionQuality: wsState.connectionQuality,
+              lastConnected: new Date(),
+              reconnectAttempts: wsState.reconnectAttempts
+            }}
+            onReconnect={wsState.reconnect}
+          />
+        );
+      case 'mesh':
+        return currentUser ? (
+          <MeshNetworkMap 
+            currentUser={currentUser}
+            availableUsers={allUsers}
+            wsState={{
+              isConnected: wsState.isConnected,
+              connectionQuality: wsState.connectionQuality
+            }}
+          />
+        ) : null;
       default:
         return (
           <div className="flex items-center justify-center h-64">
@@ -266,10 +294,10 @@ export default function PhantomHome() {
             
             <div className="hidden md:flex items-center space-x-2">
               <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-300">
-                {currentUser.alias}
+                {currentUser?.alias || 'Guest'}
               </Badge>
               <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-300">
-                {currentUser.meshCallsign}
+                {currentUser?.meshCallsign || 'UNKNOWN'}
               </Badge>
             </div>
           </div>
@@ -299,7 +327,7 @@ export default function PhantomHome() {
       <div className="border-b border-gray-700 bg-gray-900/50">
         <div className="px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-6 w-full bg-transparent border-0 h-auto p-0">
+            <TabsList className="grid grid-cols-8 w-full bg-transparent border-0 h-auto p-0">
               <TabsTrigger 
                 value="profile" 
                 className="flex items-center space-x-2 px-4 py-3 data-[state=active]:bg-emerald-900/30 data-[state=active]:border-b-2 data-[state=active]:border-emerald-400 rounded-none border-b-2 border-transparent"
@@ -341,6 +369,20 @@ export default function PhantomHome() {
               >
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">About</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="connectivity" 
+                className="flex items-center space-x-2 px-4 py-3 data-[state=active]:bg-emerald-900/30 data-[state=active]:border-b-2 data-[state=active]:border-emerald-400 rounded-none border-b-2 border-transparent"
+              >
+                <Radio className="h-4 w-4" />
+                <span className="hidden sm:inline">Network</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="mesh" 
+                className="flex items-center space-x-2 px-4 py-3 data-[state=active]:bg-emerald-900/30 data-[state=active]:border-b-2 data-[state=active]:border-emerald-400 rounded-none border-b-2 border-transparent"
+              >
+                <Globe className="h-4 w-4" />
+                <span className="hidden sm:inline">Mesh</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>

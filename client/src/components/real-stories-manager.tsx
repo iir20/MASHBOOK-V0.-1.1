@@ -103,6 +103,7 @@ export function RealStoriesManager({ userId, currentUser }: RealStoriesManagerPr
       userId: currentUser.id,
       title: formData.title,
       content: formData.content,
+      mediaUrl: null,
       expiresAt: new Date(Date.now() + formData.expiresInHours * 60 * 60 * 1000)
     };
 
