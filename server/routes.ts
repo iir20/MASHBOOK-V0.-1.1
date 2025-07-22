@@ -44,10 +44,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating user with data:', JSON.stringify(req.body, null, 2));
       const userData = insertUserSchema.parse(req.body);
+      
+      // Check if user with this alias already exists
+      const existingUser = await storage.getUserByDeviceId(userData.deviceId);
+      if (existingUser) {
+        return res.status(409).json({ 
+          error: "User already exists", 
+          details: "This device is already registered. Please use the login option.",
+          existingUser: existingUser
+        });
+      }
+      
       const user = await storage.createUser(userData);
       res.json(user);
     } catch (error: any) {
       console.error("Failed to create user:", error);
+      
+      // Handle duplicate alias error specifically
+      if (error.code === '23505' && error.constraint === 'users_alias_unique') {
+        return res.status(409).json({ 
+          error: "Username already taken", 
+          details: "This alias is already in use. Please choose a different one."
+        });
+      }
+      
       res.status(400).json({ 
         error: "Invalid user data", 
         details: error.message || error.toString()

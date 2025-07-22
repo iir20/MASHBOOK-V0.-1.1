@@ -252,9 +252,13 @@ export function AdvancedAuthSystem({ onUserAuthenticated }: AuthSystemProps) {
     if (existingUser && deviceId && typeof existingUser === 'object') {
       setAuthStep('complete');
       setSecurityProgress(100);
+      toast({
+        title: "Welcome Back!",
+        description: `Connected as ${(existingUser as UserType).alias}`,
+      });
       onUserAuthenticated(existingUser as UserType, deviceId);
     }
-  }, [existingUser, deviceId, onUserAuthenticated]);
+  }, [existingUser, deviceId, onUserAuthenticated, toast]);
 
   // Generate advanced RSA key pair
   const generateAdvancedKeyPair = async () => {
@@ -313,9 +317,22 @@ export function AdvancedAuthSystem({ onUserAuthenticated }: AuthSystemProps) {
       onUserAuthenticated(newUser, deviceId);
     },
     onError: (error: any) => {
+      let title = "Registration Failed";
+      let description = "Failed to create user account";
+      
+      if (error.message.includes("409")) {
+        title = "User Already Exists";
+        description = "This device or username is already registered. Please login instead.";
+        // Switch to login mode
+        setIsRegistering(false);
+      } else if (error.message.includes("Username already taken")) {
+        title = "Username Taken";
+        description = "This alias is already in use. Please choose a different one.";
+      }
+      
       toast({
-        title: "Registration Failed",
-        description: error.message || "Failed to create user account",
+        title,
+        description,
         variant: "destructive",
       });
     }
