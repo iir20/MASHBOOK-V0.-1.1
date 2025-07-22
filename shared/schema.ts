@@ -5,17 +5,17 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   alias: text("alias").notNull().unique(), // Changed from username to alias
-  profile: text("profile").default(""), // Changed from bio to profile
-  avatar: text("avatar").default(""), // Changed from profileImage to avatar
+  profile: text("profile").notNull().default(""), // Changed from bio to profile
+  avatar: text("avatar").notNull().default(""), // Changed from profileImage to avatar
   deviceId: text("device_id").notNull().unique(),
   publicKey: text("public_key").notNull(),
   privateKeyEncrypted: text("private_key_encrypted"), // Added encrypted private key storage
   meshCallsign: text("mesh_callsign").notNull().unique(), // Added unique mesh identifier
-  securityLevel: integer("security_level").default(1), // 1-5 security clearance
-  nodeCapabilities: text("node_capabilities").array().default([]), // Array of capabilities
-  isOnline: boolean("is_online").default(false),
-  lastSeen: timestamp("last_seen").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
+  securityLevel: integer("security_level").notNull().default(1), // 1-5 security clearance
+  nodeCapabilities: text("node_capabilities").array().notNull().default([]), // Array of capabilities
+  isOnline: boolean("is_online").notNull().default(false),
+  lastSeen: timestamp("last_seen").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const messages = pgTable("messages", {
@@ -25,20 +25,20 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   encryptedContent: text("encrypted_content").notNull(),
   messageType: text("message_type").notNull().default("text"),
-  timestamp: timestamp("timestamp").defaultNow(),
-  isEphemeral: boolean("is_ephemeral").default(true),
-  meshHops: integer("mesh_hops").default(0),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  isEphemeral: boolean("is_ephemeral").notNull().default(true),
+  meshHops: integer("mesh_hops").notNull().default(0),
 });
 
 export const meshNodes = pgTable("mesh_nodes", {
   id: serial("id").primaryKey(),
   nodeId: text("node_id").notNull().unique(),
   userId: integer("user_id").references(() => users.id),
-  signalStrength: integer("signal_strength").default(0),
-  distance: integer("distance").default(0),
+  signalStrength: integer("signal_strength").notNull().default(0),
+  distance: integer("distance").notNull().default(0),
   connectionType: text("connection_type").notNull(), // 'bluetooth', 'webrtc', 'wifi'
-  isActive: boolean("is_active").default(true),
-  lastSeen: timestamp("last_seen").defaultNow(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastSeen: timestamp("last_seen").notNull().defaultNow(),
 });
 
 export const stories = pgTable("stories", {
@@ -48,7 +48,7 @@ export const stories = pgTable("stories", {
   content: text("content").notNull(),
   mediaUrl: text("media_url"),
   expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -89,16 +89,6 @@ export const insertMeshNodeSchema = createInsertSchema(meshNodes).pick({
   connectionType: true,
   isActive: true,
 });
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type UpdateUser = z.infer<typeof updateUserSchema>;
-export type Message = typeof messages.$inferSelect;
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-export type Story = typeof stories.$inferSelect;
-export type InsertStory = z.infer<typeof insertStorySchema>;
-export type MeshNode = typeof meshNodes.$inferSelect;
-export type InsertMeshNode = z.infer<typeof insertMeshNodeSchema>;
 
 export const insertStorySchema = createInsertSchema(stories).pick({
   userId: true,

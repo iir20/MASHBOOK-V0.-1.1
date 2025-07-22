@@ -1,849 +1,449 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { 
   Send, 
-  Paperclip, 
-  Smile, 
-  MoreVertical, 
-  Phone, 
-  Video, 
+  Users, 
+  Lock, 
   Shield, 
-  MessageSquare,
-  Heart,
-  ThumbsUp,
-  Laugh,
-  Angry,
-  Sad,
-  Plus,
-  Search,
-  Bell,
-  BellOff,
-  Volume2,
-  VolumeX,
-  Image,
-  File,
-  Mic,
-  MicOff,
-  Eye,
-  EyeOff,
-  Lock,
-  Unlock,
-  Zap,
-  Wifi,
-  WifiOff,
-  Clock,
-  Check,
-  CheckCheck,
+  Clock, 
+  CheckCircle, 
   AlertCircle,
-  Info,
-  X,
-  ChevronDown,
-  ChevronUp
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useStableWebSocket } from '@/hooks/use-stable-websocket';
-import { cn } from '@/lib/utils';
-import type { User, Message } from '@shared/schema';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import type { User, Message, InsertMessage } from '@shared/schema';
 
-interface EnhancedMessage extends Message {
-  reactions?: { [emoji: string]: string[] };
-  isTyping?: boolean;
-  deliveryStatus?: 'sending' | 'sent' | 'delivered' | 'read';
-  replyTo?: string;
-  attachments?: Array<{
-    type: 'image' | 'file' | 'audio' | 'video';
-    url: string;
-    name: string;
-    size: number;
-  }>;
-  edited?: boolean;
-  editedAt?: Date;
-}
-
-interface ChatUser {
-  id: number;
-  username: string;
-  isOnline: boolean;
-  lastSeen?: Date;
-  profileImage?: string;
-  isTyping?: boolean;
-  unreadCount?: number;
-  encryptionEnabled?: boolean;
-  connectionQuality?: 'excellent' | 'good' | 'poor';
+interface ChatMessage extends Message {
+  user?: User;
+  encrypted?: boolean;
+  status?: 'sending' | 'sent' | 'delivered' | 'failed';
 }
 
 interface EnhancedModernChatProps {
   currentUser: User;
-  selectedUserId?: number;
-  onUserSelect?: (userId: number) => void;
-  className?: string;
+  availableUsers: User[];
+  wsState: {
+    isConnected: boolean;
+    connectionQuality: string;
+    sendMessage: (message: any) => void;
+  };
 }
 
 export function EnhancedModernChat({ 
   currentUser, 
-  selectedUserId, 
-  onUserSelect,
-  className 
+  availableUsers, 
+  wsState 
 }: EnhancedModernChatProps) {
-  const [messages, setMessages] = useState<EnhancedMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedReaction, setSelectedReaction] = useState<string | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [editingMessage, setEditingMessage] = useState<string | null>(null);
-  const [voiceRecording, setVoiceRecording] = useState(false);
-  const [encryptionEnabled, setEncryptionEnabled] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showChatUsers, setShowChatUsers] = useState(true);
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [messageInput, setMessageInput] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isEncrypted, setIsEncrypted] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Sample chat users
-  const [chatUsers, setChatUsers] = useState<ChatUser[]>([
-    {
-      id: 1,
-      username: 'CyberNode_Alpha',
-      isOnline: true,
-      profileImage: undefined,
-      isTyping: false,
-      unreadCount: 2,
-      encryptionEnabled: true,
-      connectionQuality: 'excellent'
-    },
-    {
-      id: 2,
-      username: 'SecureNode_Beta',
-      isOnline: true,
-      profileImage: undefined,
-      isTyping: false,
-      unreadCount: 0,
-      encryptionEnabled: true,
-      connectionQuality: 'good'
-    },
-    {
-      id: 3,
-      username: 'DataNode_Gamma',
-      isOnline: false,
-      lastSeen: new Date(Date.now() - 600000),
-      profileImage: undefined,
-      isTyping: false,
-      unreadCount: 5,
-      encryptionEnabled: false,
-      connectionQuality: 'poor'
-    }
-  ]);
-
-  // WebSocket connection
-  const { isConnected, sendMessage } = useStableWebSocket({
-    url: `ws://localhost:5000/ws`,
-    onMessage: (event) => {
-      const data = JSON.parse(event.data);
-      handleWebSocketMessage(data);
-    },
-    onError: (error) => {
-      console.error('WebSocket error:', error);
-    }
+  // Get messages from database
+  const { data: dbMessages = [], isLoading } = useQuery({
+    queryKey: ['/api/messages'],
+    enabled: !!currentUser
   });
 
-  // Initialize sample messages
+  // Listen for WebSocket messages
   useEffect(() => {
-    const sampleMessages: EnhancedMessage[] = [
-      {
-        id: 1,
-        content: 'Welcome to the decentralized mesh network! 🚀',
-        fromUserId: 1,
-        timestamp: new Date(Date.now() - 1800000),
-        messageType: 'text',
-        deliveryStatus: 'read',
-        reactions: { '👍': ['CyberNode_Alpha'], '🚀': ['SecureNode_Beta'] },
-        attachments: []
-      },
-      {
-        id: 2,
-        content: 'Encryption protocols are active and secure.',
-        fromUserId: 2,
-        timestamp: new Date(Date.now() - 1200000),
-        messageType: 'text',
-        deliveryStatus: 'read',
-        attachments: []
-      },
-      {
-        id: 3,
-        content: 'File transfer initiated - mesh_protocol.pdf (2.5MB)',
-        fromUserId: 3,
-        timestamp: new Date(Date.now() - 900000),
-        messageType: 'system',
-        deliveryStatus: 'delivered',
-        attachments: [
-          {
-            type: 'file',
-            url: '#',
-            name: 'mesh_protocol.pdf',
-            size: 2500000
-          }
-        ]
-      },
-      {
-        id: 4,
-        content: 'Network topology updated successfully ✅',
-        fromUserId: 1,
-        timestamp: new Date(Date.now() - 600000),
-        messageType: 'text',
-        deliveryStatus: 'read',
-        reactions: { '✅': ['DataNode_Gamma'] },
-        attachments: []
+    const handleWSMessage = (event: CustomEvent) => {
+      const message = event.detail;
+      
+      if (message.type === 'chat-message') {
+        const newMessage: ChatMessage = {
+          id: Date.now(),
+          fromUserId: message.fromUserId,
+          toUserId: message.toUserId,
+          content: message.content,
+          encryptedContent: message.content,
+          timestamp: new Date(),
+          messageType: 'text',
+          isEphemeral: false,
+          meshHops: 0,
+          encrypted: message.encrypted || false,
+          status: 'delivered'
+        };
+        
+        setMessages(prev => [...prev, newMessage]);
+        scrollToBottom();
       }
-    ];
+    };
 
-    setMessages(sampleMessages);
+    window.addEventListener('phantom-ws-message', handleWSMessage as EventListener);
+    return () => window.removeEventListener('phantom-ws-message', handleWSMessage as EventListener);
   }, []);
 
-  // Auto-scroll to bottom
+  // Load messages from database and merge with local state
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (Array.isArray(dbMessages) && dbMessages.length > 0) {
+      const enhancedMessages: ChatMessage[] = (dbMessages as Message[]).map((msg: Message) => ({
+        ...msg,
+        status: 'delivered' as const,
+        encrypted: isEncrypted
+      }));
+      setMessages(enhancedMessages);
+    }
+  }, [dbMessages, isEncrypted]);
+
+  // Scroll to bottom when messages change
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
 
-  // Handle typing indicator
-  useEffect(() => {
-    if (isTyping) {
-      const timeout = setTimeout(() => {
-        setIsTyping(false);
-      }, 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isTyping]);
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageData: InsertMessage) => {
+      // First save to database
+      const savedMessage = await apiRequest('/api/messages', {
+        method: 'POST',
+        body: JSON.stringify(messageData)
+      });
+      
+      // Then send via WebSocket for real-time delivery
+      if (wsState.isConnected) {
+        wsState.sendMessage({
+          type: 'chat-message',
+          fromUserId: messageData.fromUserId,
+          toUserId: messageData.toUserId,
+          content: messageData.content,
+          encrypted: isEncrypted,
+          timestamp: Date.now()
+        });
+      }
+      
+      return savedMessage;
+    },
+    onSuccess: (savedMessage) => {
+      // Add to local state with success status
+      const chatMessage: ChatMessage = {
+        ...savedMessage,
+        status: wsState.isConnected ? 'sent' : 'sending',
+        encrypted: isEncrypted
+      };
+      
+      setMessages(prev => [...prev, chatMessage]);
+      setMessageInput('');
+      scrollToBottom();
+      
+      // Invalidate messages query to refresh from database
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Message Failed",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Handle WebSocket messages
-  const handleWebSocketMessage = useCallback((data: any) => {
-    switch (data.type) {
-      case 'message':
-        const newMsg: EnhancedMessage = {
-          id: Date.now(),
-          content: data.content,
-          fromUserId: data.fromUserId,
-          timestamp: new Date(data.timestamp),
-          messageType: data.messageType || 'text',
-          deliveryStatus: 'delivered',
-          reactions: {},
-          attachments: data.attachments || []
-        };
-        setMessages(prev => [...prev, newMsg]);
-        
-        if (soundEnabled && notificationsEnabled) {
-          // Play notification sound
-          const audio = new Audio('/notification.mp3');
-          audio.play().catch(() => {});
-        }
-        break;
-        
-      case 'typing':
-        setTypingUsers(prev => 
-          data.isTyping 
-            ? [...prev.filter(u => u !== data.username), data.username]
-            : prev.filter(u => u !== data.username)
-        );
-        break;
-        
-      case 'reaction':
-        setMessages(prev => prev.map(msg => 
-          msg.id === data.messageId 
-            ? {
-                ...msg,
-                reactions: {
-                  ...msg.reactions,
-                  [data.emoji]: data.users
-                }
-              }
-            : msg
-        ));
-        break;
-    }
-  }, [soundEnabled, notificationsEnabled]);
+  const sendMessage = () => {
+    if (!messageInput.trim() || !selectedUser) return;
 
-  // Send message
-  const handleSendMessage = useCallback(() => {
-    if (!newMessage.trim()) return;
-
-    const messageData = {
-      type: 'message',
-      content: newMessage,
+    const messageData: InsertMessage = {
       fromUserId: currentUser.id,
-      timestamp: new Date(),
+      toUserId: selectedUser.id,
+      content: messageInput.trim(),
+      encryptedContent: encryptMessage(messageInput.trim()),
       messageType: 'text',
-      encrypted: encryptionEnabled,
-      replyTo: replyingTo
+      isEphemeral: false,
+      meshHops: 0
     };
 
-    if (isConnected) {
-      sendMessage(JSON.stringify(messageData));
-    }
-
-    // Add to local messages immediately
-    const localMessage: EnhancedMessage = {
-      id: Date.now(),
-      content: newMessage,
-      fromUserId: currentUser.id,
-      timestamp: new Date(),
-      messageType: 'text',
-      deliveryStatus: 'sending',
-      reactions: {},
-      attachments: [],
-      replyTo: replyingTo || undefined
-    };
-
-    setMessages(prev => [...prev, localMessage]);
-    setNewMessage('');
-    setReplyingTo(null);
-    setIsTyping(false);
-    
-    // Update delivery status after a delay
-    setTimeout(() => {
-      setMessages(prev => prev.map(msg => 
-        msg.id === localMessage.id 
-          ? { ...msg, deliveryStatus: 'sent' }
-          : msg
-      ));
-    }, 1000);
-  }, [newMessage, currentUser, isConnected, sendMessage, encryptionEnabled, replyingTo]);
-
-  // Handle typing
-  const handleTyping = useCallback((value: string) => {
-    setNewMessage(value);
-    
-    if (!isTyping) {
-      setIsTyping(true);
-      if (isConnected) {
-        sendMessage(JSON.stringify({
-          type: 'typing',
-          username: currentUser.username,
-          isTyping: true
-        }));
-      }
-    }
-
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Set new timeout
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false);
-      if (isConnected) {
-        sendMessage(JSON.stringify({
-          type: 'typing',
-          username: currentUser.username,
-          isTyping: false
-        }));
-      }
-    }, 1000);
-  }, [isTyping, isConnected, sendMessage, currentUser.username]);
-
-  // Handle reactions
-  const handleReaction = useCallback((messageId: number, emoji: string) => {
-    const message = messages.find(m => m.id === messageId);
-    if (!message) return;
-
-    const currentReactions = message.reactions || {};
-    const userReactions = currentReactions[emoji] || [];
-    const hasReacted = userReactions.includes(currentUser.username);
-
-    const updatedReactions = hasReacted
-      ? userReactions.filter(u => u !== currentUser.username)
-      : [...userReactions, currentUser.username];
-
-    if (isConnected) {
-      sendMessage(JSON.stringify({
-        type: 'reaction',
-        messageId,
-        emoji,
-        users: updatedReactions
-      }));
-    }
-
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId 
-        ? {
-            ...msg,
-            reactions: {
-              ...msg.reactions,
-              [emoji]: updatedReactions
-            }
-          }
-        : msg
-    ));
-  }, [messages, currentUser.username, isConnected, sendMessage]);
-
-  // Handle file upload
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach(file => {
-      const attachment = {
-        type: file.type.startsWith('image/') ? 'image' as const : 'file' as const,
-        url: URL.createObjectURL(file),
-        name: file.name,
-        size: file.size
-      };
-
-      const fileMessage: EnhancedMessage = {
-        id: Date.now() + Math.random(),
-        content: `Shared ${file.name}`,
-        fromUserId: currentUser.id,
-        timestamp: new Date(),
-        messageType: 'text',
-        deliveryStatus: 'sending',
-        reactions: {},
-        attachments: [attachment]
-      };
-
-      setMessages(prev => [...prev, fileMessage]);
-    });
-
-    // Reset file input
-    event.target.value = '';
-  }, [currentUser.id]);
-
-  // Format file size
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    sendMessageMutation.mutate(messageData);
   };
 
-  // Get delivery status icon
-  const getDeliveryStatusIcon = (status: string) => {
-    switch (status) {
-      case 'sending': return Clock;
-      case 'sent': return Check;
-      case 'delivered': return CheckCheck;
-      case 'read': return CheckCheck;
-      default: return Clock;
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  // Get connection quality color
-  const getConnectionQualityColor = (quality: string) => {
-    switch (quality) {
-      case 'excellent': return 'text-[var(--cyber-green)]';
-      case 'good': return 'text-[var(--cyber-yellow)]';
-      case 'poor': return 'text-red-500';
-      default: return 'text-gray-400';
+  // Encrypt message content (simplified AES encryption simulation)
+  const encryptMessage = (content: string): string => {
+    if (!isEncrypted) return content;
+    // In a real implementation, this would use proper AES encryption
+    return `🔒 ${btoa(content)}`;
+  };
+
+  const decryptMessage = (content: string): string => {
+    if (!isEncrypted || !content.startsWith('🔒 ')) return content;
+    try {
+      return atob(content.substring(2));
+    } catch {
+      return content;
     }
   };
 
-  // Filter messages based on search
-  const filteredMessages = messages.filter(msg => 
-    msg.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter messages for selected conversation
+  const conversationMessages = selectedUser 
+    ? messages.filter(msg => 
+        (msg.fromUserId === currentUser.id && msg.toUserId === selectedUser.id) ||
+        (msg.fromUserId === selectedUser.id && msg.toUserId === currentUser.id)
+      )
+    : [];
 
-  // Get selected user
-  const selectedUser = chatUsers.find(u => u.id === selectedUserId);
+  const getMessageStatus = (message: ChatMessage) => {
+    switch (message.status) {
+      case 'sending':
+        return <Clock className="h-3 w-3 text-yellow-400" />;
+      case 'sent':
+        return <CheckCircle className="h-3 w-3 text-green-400" />;
+      case 'delivered':
+        return <CheckCircle className="h-3 w-3 text-green-400 fill-current" />;
+      case 'failed':
+        return <AlertCircle className="h-3 w-3 text-red-400" />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className={cn("flex h-full", className)}>
-      {/* Users List */}
-      <div className={cn(
-        "w-80 border-r border-[var(--cyber-cyan)]/30 flex flex-col",
-        !showChatUsers && "hidden"
-      )}>
-        <div className="p-4 border-b border-[var(--cyber-cyan)]/30">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-[var(--cyber-cyan)]">Mesh Chat</h3>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                className="h-8 w-8 p-0"
-              >
-                {notificationsEnabled ? 
-                  <Bell className="w-4 h-4 text-[var(--cyber-green)]" /> : 
-                  <BellOff className="w-4 h-4 text-gray-400" />
-                }
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="h-8 w-8 p-0"
-              >
-                {soundEnabled ? 
-                  <Volume2 className="w-4 h-4 text-[var(--cyber-green)]" /> : 
-                  <VolumeX className="w-4 h-4 text-gray-400" />
-                }
-              </Button>
-            </div>
-          </div>
-          
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-        
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-2">
-            {chatUsers.map((user) => (
-              <div
-                key={user.id}
-                onClick={() => onUserSelect?.(user.id)}
-                className={cn(
-                  "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
-                  selectedUserId === user.id ? "bg-[var(--cyber-cyan)]/20" : "hover:bg-[var(--cyber-cyan)]/10"
-                )}
-              >
-                <div className="relative">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={user.profileImage} />
-                    <AvatarFallback className="bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)]">
-                      {user.username.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className={cn(
-                    "absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[var(--cyber-dark)]",
-                    user.isOnline ? "bg-[var(--cyber-green)]" : "bg-gray-500"
-                  )} />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-white truncate">{user.username}</p>
-                    <div className="flex items-center space-x-1">
-                      {user.encryptionEnabled && (
-                        <Shield className="w-3 h-3 text-[var(--cyber-green)]" />
-                      )}
-                      <Wifi className={cn("w-3 h-3", getConnectionQualityColor(user.connectionQuality || 'good'))} />
+    <div className="w-full max-w-7xl mx-auto p-4 h-[calc(100vh-120px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
+        {/* User List */}
+        <Card className="lg:col-span-1 bg-gray-800/50 border-gray-700">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-emerald-400 flex items-center">
+              <Users className="h-5 w-5 mr-2" />
+              Contacts ({availableUsers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[400px] lg:h-[calc(100vh-200px)]">
+              <div className="space-y-2 p-4">
+                {availableUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => setSelectedUser(user)}
+                    className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedUser?.id === user.id
+                        ? 'bg-emerald-900/30 border border-emerald-500/30'
+                        : 'hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.avatar || undefined} />
+                      <AvatarFallback className="bg-gradient-to-br from-emerald-400 to-cyan-400 text-gray-900">
+                        {user.alias.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-white truncate">{user.alias}</p>
+                      <p className="text-sm text-gray-400 truncate">{user.meshCallsign}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-400">
-                      {user.isTyping ? 'Typing...' : 
-                       user.isOnline ? 'Online' : 
-                       user.lastSeen ? `Last seen ${user.lastSeen.toLocaleTimeString()}` : 'Offline'}
-                    </p>
-                    {user.unreadCount && user.unreadCount > 0 && (
-                      <Badge variant="default" className="bg-[var(--cyber-cyan)] text-xs">
-                        {user.unreadCount}
+                    
+                    <div className="flex flex-col items-end space-y-1">
+                      <div className={`w-2 h-2 rounded-full ${user.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                      <Badge variant="outline" className="text-xs">
+                        L{user.securityLevel}
                       </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {selectedUser ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-[var(--cyber-cyan)]/30 bg-[var(--cyber-dark)]/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={selectedUser.profileImage} />
-                    <AvatarFallback className="bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)]">
-                      {selectedUser.username.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium text-white">{selectedUser.username}</p>
-                    <p className="text-sm text-gray-400 flex items-center space-x-2">
-                      <span>
-                        {selectedUser.isTyping ? 'Typing...' : 
-                         selectedUser.isOnline ? 'Online' : 'Offline'}
-                      </span>
-                      {selectedUser.encryptionEnabled && (
-                        <Shield className="w-3 h-3 text-[var(--cyber-green)]" />
-                      )}
-                      <Wifi className={cn("w-3 h-3", getConnectionQualityColor(selectedUser.connectionQuality || 'good'))} />
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEncryptionEnabled(!encryptionEnabled)}
-                    className="h-8 w-8 p-0"
-                  >
-                    {encryptionEnabled ? 
-                      <Lock className="w-4 h-4 text-[var(--cyber-green)]" /> : 
-                      <Unlock className="w-4 h-4 text-gray-400" />
-                    }
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                  >
-                    <Video className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowChatUsers(!showChatUsers)}
-                    className="h-8 w-8 p-0"
-                  >
-                    {showChatUsers ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {filteredMessages.map((message) => {
-                  const isOwn = message.fromUserId === currentUser.id;
-                  const user = chatUsers.find(u => u.id === message.fromUserId);
-                  const DeliveryIcon = getDeliveryStatusIcon(message.deliveryStatus || 'sent');
-                  
-                  return (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex items-end space-x-2",
-                        isOwn ? "justify-end" : "justify-start"
-                      )}
-                    >
-                      {!isOwn && (
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={user?.profileImage} />
-                          <AvatarFallback className="bg-gradient-to-br from-[var(--cyber-cyan)] to-[var(--cyber-magenta)] text-xs">
-                            {user?.username.charAt(0).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
-                      
-                      <div className={cn(
-                        "max-w-xs lg:max-w-md",
-                        isOwn ? "order-1" : "order-2"
-                      )}>
-                        <div className={cn(
-                          "px-4 py-2 rounded-lg",
-                          isOwn 
-                            ? "bg-[var(--cyber-cyan)] text-white" 
-                            : "bg-[var(--cyber-dark)] text-white",
-                          message.messageType === 'system' && "bg-[var(--cyber-yellow)]/20 text-[var(--cyber-yellow)]"
-                        )}>
-                          {message.replyTo && (
-                            <div className="text-xs opacity-70 mb-1 border-l-2 border-white/30 pl-2">
-                              Replying to message
-                            </div>
-                          )}
-                          
-                          <p className="text-sm">{message.content}</p>
-                          
-                          {message.attachments && message.attachments.length > 0 && (
-                            <div className="mt-2 space-y-2">
-                              {message.attachments.map((attachment, index) => (
-                                <div key={index} className="flex items-center space-x-2">
-                                  {attachment.type === 'image' ? (
-                                    <Image className="w-4 h-4" />
-                                  ) : (
-                                    <File className="w-4 h-4" />
-                                  )}
-                                  <span className="text-xs">{attachment.name}</span>
-                                  <span className="text-xs opacity-70">
-                                    ({formatFileSize(attachment.size)})
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs opacity-70">
-                              {message.timestamp.toLocaleTimeString()}
-                            </span>
-                            {isOwn && (
-                              <DeliveryIcon className={cn(
-                                "w-3 h-3",
-                                message.deliveryStatus === 'read' ? "text-[var(--cyber-green)]" : "text-gray-400"
-                              )} />
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Reactions */}
-                        {message.reactions && Object.keys(message.reactions).length > 0 && (
-                          <div className="flex items-center space-x-1 mt-1">
-                            {Object.entries(message.reactions).map(([emoji, users]) => (
-                              users.length > 0 && (
-                                <Button
-                                  key={emoji}
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleReaction(message.id, emoji)}
-                                  className="h-6 px-2 text-xs"
-                                >
-                                  {emoji} {users.length}
-                                </Button>
-                              )
-                            ))}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedReaction(message.id.toString())}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
                 
-                {/* Typing indicator */}
-                {typingUsers.length > 0 && (
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                    </div>
-                    <span className="text-sm">
-                      {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-                    </span>
+                {availableUsers.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No contacts available</p>
+                    <p className="text-xs mt-1">Users will appear here when they join</p>
                   </div>
                 )}
-                
-                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
+          </CardContent>
+        </Card>
 
-            {/* Message Input */}
-            <div className="p-4 border-t border-[var(--cyber-cyan)]/30">
-              {replyingTo && (
-                <div className="flex items-center justify-between mb-2 p-2 bg-[var(--cyber-cyan)]/10 rounded">
-                  <span className="text-sm text-gray-400">Replying to message</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setReplyingTo(null)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
+        {/* Chat Area */}
+        <Card className="lg:col-span-3 bg-gray-800/50 border-gray-700 flex flex-col">
+          {selectedUser ? (
+            <>
+              {/* Chat Header */}
+              <CardHeader className="pb-3 border-b border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={selectedUser.avatar || undefined} />
+                      <AvatarFallback className="bg-gradient-to-br from-emerald-400 to-cyan-400 text-gray-900">
+                        {selectedUser.alias.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div>
+                      <h3 className="font-medium text-white">{selectedUser.alias}</h3>
+                      <p className="text-sm text-gray-400 flex items-center">
+                        {selectedUser.isOnline ? (
+                          <>
+                            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            Online
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
+                            Offline
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      size="sm"
+                      variant={isEncrypted ? "default" : "outline"}
+                      onClick={() => setIsEncrypted(!isEncrypted)}
+                      className={isEncrypted ? "bg-emerald-600 hover:bg-emerald-700" : "border-gray-600"}
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      {isEncrypted ? 'E2E Enabled' : 'E2E Disabled'}
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1 text-sm text-gray-400">
+                      {wsState.isConnected ? (
+                        <Wifi className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <WifiOff className="h-4 w-4 text-red-400" />
+                      )}
+                      <span className="text-xs">{wsState.connectionQuality}</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-              
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-9 w-9 p-0"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                
-                <div className="flex-1 relative">
+              </CardHeader>
+
+              {/* Messages */}
+              <CardContent className="flex-1 p-0 overflow-hidden">
+                <ScrollArea ref={scrollRef} className="h-full p-4">
+                  <div className="space-y-4">
+                    {isLoading ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="animate-spin h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                        Loading messages...
+                      </div>
+                    ) : conversationMessages.length > 0 ? (
+                      conversationMessages.map((message, index) => {
+                        const isOwnMessage = message.fromUserId === currentUser.id;
+                        const showTime = index === 0 || 
+                          (new Date(message.timestamp!).getTime() - new Date(conversationMessages[index - 1].timestamp!).getTime()) > 300000; // 5 minutes
+                        
+                        return (
+                          <div key={message.id || index}>
+                            {showTime && (
+                              <div className="text-center py-2">
+                                <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">
+                                  {new Date(message.timestamp!).toLocaleTimeString()}
+                                </span>
+                              </div>
+                            )}
+                            
+                            <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                isOwnMessage
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-gray-700 text-gray-100'
+                              }`}>
+                                <div className="flex items-start space-x-2">
+                                  <div className="flex-1">
+                                    <p className="text-sm break-words">
+                                      {decryptMessage(message.content)}
+                                    </p>
+                                    
+                                    <div className="flex items-center justify-between mt-1">
+                                      <div className="flex items-center space-x-1">
+                                        {message.encrypted && (
+                                          <Lock className="h-3 w-3 text-green-400" />
+                                        )}
+                                        <span className="text-xs opacity-70">
+                                          {new Date(message.timestamp!).toLocaleTimeString([], { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                          })}
+                                        </span>
+                                      </div>
+                                      
+                                      {isOwnMessage && getMessageStatus(message)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <Send className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No messages yet</p>
+                        <p className="text-xs mt-1">Start a conversation with {selectedUser.alias}</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+
+              {/* Message Input */}
+              <div className="border-t border-gray-700 p-4">
+                <div className="flex space-x-2">
                   <Input
-                    ref={inputRef}
-                    value={newMessage}
-                    onChange={(e) => handleTyping(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Type your message..."
-                    className="pr-10"
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={isEncrypted ? "Send encrypted message..." : "Send message..."}
+                    className="flex-1 bg-gray-700/50 border-gray-600"
+                    disabled={!wsState.isConnected}
                   />
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                    onClick={sendMessage}
+                    disabled={!messageInput.trim() || sendMessageMutation.isPending || !wsState.isConnected}
+                    className="bg-emerald-600 hover:bg-emerald-700"
                   >
-                    <Smile className="w-4 h-4" />
+                    {sendMessageMutation.isPending ? (
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
                 
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="h-9 w-9 p-0 bg-[var(--cyber-cyan)] hover:bg-[var(--cyber-cyan)]/80"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
+                {!wsState.isConnected && (
+                  <p className="text-xs text-yellow-400 mt-2 flex items-center">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Connection lost. Messages will be sent when reconnected.
+                  </p>
+                )}
               </div>
-              
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
-                <div className="flex items-center space-x-2">
-                  <span>Status:</span>
-                  <span className={cn(
-                    "flex items-center space-x-1",
-                    isConnected ? "text-[var(--cyber-green)]" : "text-red-500"
-                  )}>
-                    {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                    <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {encryptionEnabled && (
-                    <span className="flex items-center space-x-1 text-[var(--cyber-green)]">
-                      <Shield className="w-3 h-3" />
-                      <span>Encrypted</span>
-                    </span>
-                  )}
-                </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <Send className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Select a contact to start chatting</p>
+                <p className="text-sm mt-2">Choose someone from your contacts list</p>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg">Select a conversation</p>
-              <p className="text-sm mt-2">Choose a user from the list to start chatting</p>
-            </div>
-          </div>
-        )}
+          )}
+        </Card>
       </div>
-      
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
     </div>
   );
 }

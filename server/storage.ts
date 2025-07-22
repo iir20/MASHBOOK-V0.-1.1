@@ -1,11 +1,13 @@
-import { users, messages, meshNodes, stories, type User, type InsertUser, type Message, type InsertMessage, type MeshNode, type InsertMeshNode, type Story, type InsertStory } from "@shared/schema";
+import { users, messages, meshNodes, stories, type User, type InsertUser, type UpdateUser, type Message, type InsertMessage, type MeshNode, type InsertMeshNode, type Story, type InsertStory } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByDeviceId(deviceId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
+  updateUser(id: number, updates: UpdateUser): Promise<User | undefined>;
   updateUserOnlineStatus(id: number, isOnline: boolean): Promise<void>;
   
   // Message methods
@@ -25,145 +27,116 @@ export interface IStorage {
   getStoriesByUser(userId: number): Promise<Story[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private messages: Map<number, Message>;
-  private meshNodes: Map<number, MeshNode>;
-  private stories: Map<number, Story>;
-  private currentUserId: number;
-  private currentMessageId: number;
-  private currentNodeId: number;
-  private currentStoryId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.messages = new Map();
-    this.meshNodes = new Map();
-    this.stories = new Map();
-    this.currentUserId = 1;
-    this.currentMessageId = 1;
-    this.currentNodeId = 1;
-    this.currentStoryId = 1;
-  }
-
-
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByDeviceId(deviceId: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.deviceId === deviceId
-    );
+    const [user] = await db.select().from(users).where(eq(users.deviceId, deviceId));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = {
-      ...insertUser,
-      id,
-      isOnline: true,
-      lastSeen: new Date(),
-      createdAt: new Date(),
-    };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
-  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (user) {
-      const updatedUser = { ...user, ...updates, lastSeen: new Date() };
-      this.users.set(id, updatedUser);
-      return updatedUser;
-    }
-    return undefined;
+  async updateUser(id: number, updates: UpdateUser): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, lastSeen: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
   }
 
   async updateUserOnlineStatus(id: number, isOnline: boolean): Promise<void> {
-    const user = this.users.get(id);
-    if (user) {
-      user.isOnline = isOnline;
-      user.lastSeen = new Date();
-      this.users.set(id, user);
-    }
+    await db
+      .update(users)
+      .set({ isOnline, lastSeen: new Date() })
+      .where(eq(users.id, id));
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const id = this.currentMessageId++;
-    const message: Message = {
-      ...insertMessage,
-      id,
-      timestamp: new Date(),
-    };
-    this.messages.set(id, message);
+    const [message] = await db
+      .insert(messages)
+      .values(insertMessage)
+      .returning();
     return message;
   }
 
   async getMessagesByUser(userId: number): Promise<Message[]> {
-    return Array.from(this.messages.values()).filter(
-      (message) => message.fromUserId === userId || message.toUserId === userId
-    );
+    return await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.fromUserId, userId),
+          eq(messages.toUserId, userId)
+        )
+      );
   }
 
   async getRecentMessages(limit: number = 50): Promise<Message[]> {
-    return Array.from(this.messages.values())
-      .sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0))
-      .slice(0, limit);
+    return await db
+      .select()
+      .from(messages)
+      .orderBy(messages.timestamp)
+      .limit(limit);
   }
 
   async createMeshNode(insertNode: InsertMeshNode): Promise<MeshNode> {
-    const id = this.currentNodeId++;
-    const node: MeshNode = {
-      ...insertNode,
-      id,
-      lastSeen: new Date(),
-    };
-    this.meshNodes.set(id, node);
+    const [node] = await db
+      .insert(meshNodes)
+      .values(insertNode)
+      .returning();
     return node;
   }
 
   async getMeshNodes(): Promise<MeshNode[]> {
-    return Array.from(this.meshNodes.values());
+    return await db.select().from(meshNodes);
   }
 
   async getActiveMeshNodes(): Promise<MeshNode[]> {
-    return Array.from(this.meshNodes.values()).filter(node => node.isActive);
+    return await db
+      .select()
+      .from(meshNodes)
+      .where(eq(meshNodes.isActive, true));
   }
 
-  async updateMeshNodeStatus(nodeId: string, isActive: boolean): Promise<void> {
-    const node = Array.from(this.meshNodes.values()).find(n => n.nodeId === nodeId);
-    if (node) {
-      node.isActive = isActive;
-      node.lastSeen = new Date();
-      this.meshNodes.set(node.id, node);
-    }
+  async updateMeshNodeStatus(nodeId: string, isOnline: boolean): Promise<void> {
+    await db
+      .update(meshNodes)
+      .set({ isActive: isOnline, lastSeen: new Date() })
+      .where(eq(meshNodes.nodeId, nodeId));
   }
 
   async createStory(insertStory: InsertStory): Promise<Story> {
-    const id = this.currentStoryId++;
-    const story: Story = {
-      ...insertStory,
-      id,
-      createdAt: new Date(),
-    };
-    this.stories.set(id, story);
+    const [story] = await db
+      .insert(stories)
+      .values(insertStory)
+      .returning();
     return story;
   }
 
   async getActiveStories(): Promise<Story[]> {
-    const now = new Date();
-    return Array.from(this.stories.values()).filter(
-      (story) => story.expiresAt > now
-    );
+    return await db
+      .select()
+      .from(stories)
+      .where(gt(stories.expiresAt, new Date()));
   }
 
   async getStoriesByUser(userId: number): Promise<Story[]> {
-    return Array.from(this.stories.values()).filter(
-      (story) => story.userId === userId
-    );
+    return await db
+      .select()
+      .from(stories)
+      .where(eq(stories.userId, userId));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
