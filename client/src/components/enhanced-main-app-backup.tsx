@@ -1,18 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import type { User } from '@shared/schema';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 import { 
   MessageSquare, 
   Users, 
   Sparkles, 
-  UserIcon,
+  User,
   Network,
   Settings,
   Wifi,
@@ -30,11 +28,13 @@ import { FacebookMenuBar } from './facebook-menu-bar';
 import { CompleteUserProfile } from './complete-user-profile';
 import { EnhancedMeshNetworking } from './enhanced-mesh-networking';
 
-type UserType = User;
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import type { User as UserType } from '@shared/schema';
 
 interface WSState {
   isConnected: boolean;
-  connectionQuality: 'offline' | 'poor' | 'fair' | 'good' | 'excellent';
+  connectionQuality: string;
   sendMessage: (message: any) => void;
   reconnect: () => void;
 }
@@ -54,7 +54,7 @@ export function EnhancedMainApp() {
 
   const { toast } = useToast();
 
-  // Load user from localStorage on mount
+  // Check for existing user session
   useEffect(() => {
     const savedUser = localStorage.getItem('meshbook-user');
     if (savedUser) {
@@ -62,14 +62,14 @@ export function EnhancedMainApp() {
         const user = JSON.parse(savedUser);
         setCurrentUser(user);
       } catch (error) {
-        console.error('Failed to load saved user:', error);
+        console.error('Failed to parse saved user:', error);
         localStorage.removeItem('meshbook-user');
       }
     }
   }, []);
 
   // Fetch available users
-  const { data: availableUsers = [] } = useQuery<UserType[]>({
+  const { data: availableUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ['/api/users'],
     enabled: !!currentUser,
     refetchInterval: 10000 // Refresh every 10 seconds
@@ -188,12 +188,11 @@ export function EnhancedMainApp() {
     };
   }, [currentUser, isOfflineMode]);
 
-  const handleUserAuthenticated = (user: UserType) => {
+  const handleLogin = (user: UserType) => {
     setCurrentUser(user);
-    localStorage.setItem('meshbook-user', JSON.stringify(user));
     toast({
       title: "Welcome to Meshbook!",
-      description: `Connected as ${user.alias}`,
+      description: `Logged in as ${user.alias}`,
     });
   };
 
@@ -207,12 +206,12 @@ export function EnhancedMainApp() {
     });
   };
 
-  const handleSelectUser = (user: UserType) => {
+  const handleMessageUser = (user: UserType) => {
     setSelectedUser(user);
     setActiveTab('messages');
   };
 
-  const handleViewProfile = (user: UserType) => {
+  const handleUserProfile = (user: UserType) => {
     setSelectedUser(user);
     setShowUserProfile(true);
   };
@@ -230,13 +229,10 @@ export function EnhancedMainApp() {
   // Show auth/registration if no user
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-background">
-        <EnhancedAuthRegistration 
-          onUserAuthenticated={handleUserAuthenticated}
-          onLogout={handleLogout}
-          currentUser={currentUser}
-        />
-      </div>
+      <EnhancedAuthRegistration 
+        onLogin={handleLogin}
+        currentUser={currentUser}
+      />
     );
   }
 
@@ -249,7 +245,7 @@ export function EnhancedMainApp() {
       {/* Facebook-style Menu Bar */}
       <FacebookMenuBar 
         currentUser={currentUser}
-        onUserSelect={handleViewProfile}
+        onUserSelect={handleUserProfile}
       />
 
       {/* Main Content */}
@@ -279,7 +275,7 @@ export function EnhancedMainApp() {
                 <span>Connectivity</span>
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex items-center gap-2 px-6 py-3">
-                <UserIcon className="w-4 h-4" />
+                <User className="w-4 h-4" />
                 <span>Profile</span>
               </TabsTrigger>
             </TabsList>
@@ -291,8 +287,8 @@ export function EnhancedMainApp() {
               <FacebookStyleStories
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
-                onMessageUser={handleSelectUser}
-                onUserProfile={handleViewProfile}
+                onMessageUser={handleMessageUser}
+                onUserProfile={handleUserProfile}
               />
             </TabsContent>
 
@@ -301,7 +297,7 @@ export function EnhancedMainApp() {
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
                 wsState={wsState}
-                onUserProfile={handleViewProfile}
+                onUserProfile={handleUserProfile}
                 isOffline={isOfflineMode}
               />
             </TabsContent>
@@ -312,7 +308,7 @@ export function EnhancedMainApp() {
                   <Card 
                     key={user.id}
                     className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
-                    onClick={() => handleViewProfile(user)}
+                    onClick={() => handleUserProfile(user)}
                   >
                     <CardContent className="p-4">
                       <div className="flex flex-col items-center text-center space-y-3">
@@ -337,7 +333,7 @@ export function EnhancedMainApp() {
                             className="flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleSelectUser(user);
+                              handleMessageUser(user);
                             }}
                           >
                             <MessageSquare className="w-4 h-4 mr-1" />
@@ -348,7 +344,7 @@ export function EnhancedMainApp() {
                             variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleViewProfile(user);
+                              handleUserProfile(user);
                             }}
                           >
                             <Eye className="w-4 h-4" />
@@ -365,7 +361,7 @@ export function EnhancedMainApp() {
               <EnhancedMeshNetworking
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
-                onUserSelect={handleViewProfile}
+                onUserSelect={handleUserProfile}
               />
             </TabsContent>
 
@@ -430,7 +426,7 @@ export function EnhancedMainApp() {
                             variant="outline" 
                             size="lg"
                             onClick={() => {
-                              handleSelectUser(currentUser);
+                              handleMessageUser(currentUser);
                               setActiveTab('messages');
                             }}
                           >
@@ -456,7 +452,7 @@ export function EnhancedMainApp() {
           isOpen={showUserProfile}
           onClose={() => setShowUserProfile(false)}
           onMessage={(user) => {
-            handleSelectUser(user);
+            handleMessageUser(user);
             setActiveTab('messages');
             setShowUserProfile(false);
           }}
@@ -499,6 +495,64 @@ export function EnhancedMainApp() {
           </div>
         </div>
       </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Device ID:</span>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    {selectedUser.deviceId}
+                  </code>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Mesh Callsign:</span>
+                  <Badge variant="outline">{selectedUser.meshCallsign}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Security Level:</span>
+                  <Badge variant="secondary">Level {selectedUser.securityLevel}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Status:</span>
+                  <Badge variant="default" className="bg-green-600">
+                    Online
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    handleMessageUser(selectedUser);
+                    setShowUserProfile(false);
+                  }}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Send Message
+                </Button>
+                {selectedUser.id === currentUser.id && (
+                  <Button variant="outline" className="flex-1">
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Offline Mode Indicator */}
+      {isOfflineMode && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Card className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+            <CardContent className="p-3 flex items-center gap-2">
+              <WifiOff className="w-4 h-4 text-yellow-600" />
+              <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Offline Mode
+              </span>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
