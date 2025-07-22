@@ -4,6 +4,7 @@ import { RealCipherProfile } from '@/components/real-cipher-profile';
 import { RealStoriesManager } from '@/components/real-stories-manager';
 import { EnhancedSecureVault } from '@/components/enhanced-secure-vault';
 import { EnhancedModernChat } from '@/components/enhanced-modern-chat';
+import { AboutMeshBook } from '@/components/about-meshbook';
 import { useStableWebSocket, ConnectionStatus } from '@/components/stable-websocket';
 import { Sidebar } from '@/components/sidebar';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,8 @@ import {
   LogOut,
   Wifi,
   WifiOff,
-  Activity
+  Activity,
+  BookOpen
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -109,9 +111,14 @@ export default function PhantomHome() {
     localStorage.setItem('phantomUser', JSON.stringify(updatedUser));
   };
 
-  // Show authentication if no user is logged in
-  if (!currentUser) {
+  // Show authentication if no user is logged in (except for About page)
+  if (!currentUser && activeTab !== 'about') {
     return <AuthSystem onUserAuthenticated={handleUserAuthenticated} />;
+  }
+
+  // If no user and accessing About, show About page with option to get started
+  if (!currentUser && activeTab === 'about') {
+    return <AboutMeshBook onGetStarted={() => setActiveTab('profile')} />;
   }
 
   // Filter real users (exclude demo/fake users)
@@ -229,6 +236,12 @@ export default function PhantomHome() {
             )}
           </div>
         );
+      case 'about':
+        return (
+          <AboutMeshBook 
+            onGetStarted={() => setActiveTab('profile')}
+          />
+        );
       default:
         return (
           <div className="flex items-center justify-center h-64">
@@ -286,7 +299,7 @@ export default function PhantomHome() {
       <div className="border-b border-gray-700 bg-gray-900/50">
         <div className="px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-5 w-full bg-transparent border-0 h-auto p-0">
+            <TabsList className="grid grid-cols-6 w-full bg-transparent border-0 h-auto p-0">
               <TabsTrigger 
                 value="profile" 
                 className="flex items-center space-x-2 px-4 py-3 data-[state=active]:bg-emerald-900/30 data-[state=active]:border-b-2 data-[state=active]:border-emerald-400 rounded-none border-b-2 border-transparent"
@@ -321,6 +334,13 @@ export default function PhantomHome() {
               >
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Users</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="about" 
+                className="flex items-center space-x-2 px-4 py-3 data-[state=active]:bg-emerald-900/30 data-[state=active]:border-b-2 data-[state=active]:border-emerald-400 rounded-none border-b-2 border-transparent"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">About</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>

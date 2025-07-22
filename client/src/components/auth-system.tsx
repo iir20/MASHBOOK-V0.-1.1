@@ -102,8 +102,8 @@ export function AuthSystem({ onUserAuthenticated }: AuthSystemProps) {
 
   // Auto-login if user exists
   useEffect(() => {
-    if (existingUser && deviceId) {
-      onUserAuthenticated(existingUser, deviceId);
+    if (existingUser && deviceId && typeof existingUser === 'object') {
+      onUserAuthenticated(existingUser as UserType, deviceId);
     }
   }, [existingUser, deviceId, onUserAuthenticated]);
 
@@ -125,8 +125,8 @@ export function AuthSystem({ onUserAuthenticated }: AuthSystemProps) {
       const publicKey = await crypto.subtle.exportKey('spki', keyPair.publicKey);
       const privateKey = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
       
-      const publicKeyB64 = btoa(String.fromCharCode(...new Uint8Array(publicKey)));
-      const privateKeyB64 = btoa(String.fromCharCode(...new Uint8Array(privateKey)));
+      const publicKeyB64 = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(publicKey))));
+      const privateKeyB64 = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(privateKey))));
 
       return {
         publicKey: publicKeyB64,
@@ -145,10 +145,7 @@ export function AuthSystem({ onUserAuthenticated }: AuthSystemProps) {
     mutationFn: async (userData: InsertUser) => {
       return await apiRequest('/api/users', {
         method: 'POST',
-        body: JSON.stringify(userData),
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: userData
       });
     },
     onSuccess: (user: UserType) => {
