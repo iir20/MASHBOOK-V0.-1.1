@@ -166,11 +166,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/stories", async (req, res) => {
     try {
+      console.log('Story creation request:', JSON.stringify(req.body, null, 2));
+      
+      // Convert string dates to Date objects
+      if (req.body.expiresAt && typeof req.body.expiresAt === 'string') {
+        req.body.expiresAt = new Date(req.body.expiresAt);
+      }
+      
       const storyData = insertStorySchema.parse(req.body);
       const story = await storage.createStory(storyData);
       res.json(story);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid story data" });
+    } catch (error: any) {
+      console.error("Story creation error:", error);
+      res.status(400).json({ 
+        error: "Invalid story data",
+        details: error.message || error.toString()
+      });
     }
   });
 

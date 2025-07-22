@@ -24,6 +24,9 @@ import { FacebookStyleStories } from './facebook-style-stories';
 import { EnhancedRealTimeMessaging } from './enhanced-real-time-messaging';
 import { EnhancedConnectivitySystem } from './enhanced-connectivity-system';
 import { EnhancedAuthRegistration } from './enhanced-auth-registration';
+import { FacebookMenuBar } from './facebook-menu-bar';
+import { CompleteUserProfile } from './complete-user-profile';
+import { EnhancedMeshNetworking } from './enhanced-mesh-networking';
 
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -38,7 +41,7 @@ interface WSState {
 
 export function EnhancedMainApp() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [activeTab, setActiveTab] = useState<'stories' | 'messages' | 'users' | 'network'>('stories');
+  const [activeTab, setActiveTab] = useState<'stories' | 'messages' | 'users' | 'network' | 'mesh' | 'profile'>('stories');
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
