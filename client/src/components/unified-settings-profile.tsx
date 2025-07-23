@@ -97,7 +97,7 @@ export function UnifiedSettingsProfile({ currentUser, onUserUpdate, onClose }: U
     mutationFn: async (updates: UpdateUser) => {
       return apiRequest(`/api/users/${currentUser.id}`, {
         method: 'PATCH',
-        body: JSON.stringify(updates)
+        body: updates
       });
     },
     onSuccess: (updatedUser) => {
@@ -133,6 +133,7 @@ export function UnifiedSettingsProfile({ currentUser, onUserUpdate, onClose }: U
   }, [settings]);
 
   const handleSaveProfile = () => {
+    console.log('Saving profile data:', profileData);
     updateProfileMutation.mutate(profileData);
   };
 

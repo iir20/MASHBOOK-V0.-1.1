@@ -31,6 +31,7 @@ import { EnhancedRealTimeMessaging } from './enhanced-real-time-messaging';
 import { EnhancedConnectivitySystem } from './enhanced-connectivity-system';
 import { LiveMeshNetworkMap } from './live-mesh-network-map';
 import { EnhancedAuthSystem } from './enhanced-auth-system';
+import { EnhancedStoryVaultSystem } from './enhanced-story-vault-system';
 import { ThemeProvider, FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
 
 type UserType = User;
@@ -355,15 +356,11 @@ export function OptimizedMainApp() {
               </TabsList>
 
               <TabsContent value="stories">
-                <FuturisticCard className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    Stories & Updates
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Share ephemeral stories and updates with your mesh network.
-                  </p>
-                </FuturisticCard>
+                <EnhancedStoryVaultSystem
+                  currentUser={currentUser}
+                  availableUsers={realAvailableUsers}
+                  isOffline={isOfflineMode}
+                />
               </TabsContent>
 
               <TabsContent value="chat">
@@ -516,25 +513,11 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="vault">
-                <FuturisticCard className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    Cipher Vault
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Secure encrypted storage for your files and data.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FuturisticCard className="p-4">
-                      <h4 className="font-semibold mb-2">Encrypted Files</h4>
-                      <p className="text-sm text-muted-foreground">0 files stored</p>
-                    </FuturisticCard>
-                    <FuturisticCard className="p-4">
-                      <h4 className="font-semibold mb-2">Security Level</h4>
-                      <p className="text-sm text-muted-foreground">Level {currentUser.securityLevel}</p>
-                    </FuturisticCard>
-                  </div>
-                </FuturisticCard>
+                <EnhancedStoryVaultSystem
+                  currentUser={currentUser}
+                  availableUsers={realAvailableUsers}
+                  isOffline={isOfflineMode}
+                />
               </TabsContent>
 
               <TabsContent value="settings">
