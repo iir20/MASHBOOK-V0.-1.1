@@ -22,13 +22,13 @@ import {
   Edit
 } from 'lucide-react';
 
-import { FacebookStyleStories } from './facebook-style-stories';
+import { EnhancedStorySystem } from './enhanced-story-system';
 import { EnhancedRealTimeMessaging } from './enhanced-real-time-messaging';
 import { EnhancedConnectivitySystem } from './enhanced-connectivity-system';
 import { EnhancedAuthRegistration } from './enhanced-auth-registration';
 import { FacebookMenuBar } from './facebook-menu-bar';
 import { CompleteUserProfile } from './complete-user-profile';
-import { EnhancedMeshNetworking } from './enhanced-mesh-networking';
+import { LiveMeshNetworkMap } from './live-mesh-network-map';
 import { EnhancedProfileEditor } from './enhanced-profile-editor';
 import { EnhancedSettingsPanel } from './enhanced-settings-panel';
 
@@ -321,11 +321,12 @@ export function EnhancedMainApp() {
           {/* Tab Content */}
           <div className="flex-1 overflow-hidden">
             <TabsContent value="stories" className="h-full m-0">
-              <FacebookStyleStories
+              <EnhancedStorySystem
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
                 onMessageUser={handleSelectUser}
                 onUserProfile={handleViewProfile}
+                isOffline={isOfflineMode}
               />
             </TabsContent>
 
@@ -395,10 +396,11 @@ export function EnhancedMainApp() {
             </TabsContent>
 
             <TabsContent value="mesh" className="h-full m-0">
-              <EnhancedMeshNetworking
+              <LiveMeshNetworkMap
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
                 onUserSelect={handleViewProfile}
+                isOffline={isOfflineMode}
               />
             </TabsContent>
 
