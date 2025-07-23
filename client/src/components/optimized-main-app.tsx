@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,13 @@ import {
   Gauge,
   Radio,
   Map,
-  BookOpen
+  BookOpen,
+  FileText,
+  Lock,
+  Upload,
+  Eye,
+  Download,
+  Plus
 } from 'lucide-react';
 
 import { UnifiedSettingsProfile } from './unified-settings-profile';
@@ -30,8 +36,9 @@ import { EnhancedStorySystem } from './enhanced-story-system';
 import { EnhancedRealTimeMessaging } from './enhanced-real-time-messaging';
 import { EnhancedConnectivitySystem } from './enhanced-connectivity-system';
 import { LiveMeshNetworkMap } from './live-mesh-network-map';
-import { EnhancedAuthSystem } from './enhanced-auth-system';
+import { EnhancedAuthShowcase } from './enhanced-auth-showcase';
 import { EnhancedStoryVaultSystem } from './enhanced-story-vault-system';
+import { EnhancedNodeSystem } from './enhanced-node-system';
 import { ThemeProvider, FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
 
 type UserType = User;
@@ -45,7 +52,7 @@ interface WSState {
 
 export function OptimizedMainApp() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [activeTab, setActiveTab] = useState<'stories' | 'chat' | 'users' | 'network' | 'mesh' | 'vault' | 'settings' | 'about'>('stories');
+  const [activeTab, setActiveTab] = useState<'stories' | 'chat' | 'users' | 'network' | 'mesh' | 'vault' | 'node' | 'settings'>('stories');
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(() => {
@@ -65,6 +72,7 @@ export function OptimizedMainApp() {
   });
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -244,7 +252,13 @@ export function OptimizedMainApp() {
   if (!currentUser) {
     return (
       <ThemeProvider>
-        <EnhancedAuthSystem onUserAuthenticated={setCurrentUser} />
+        <EnhancedAuthShowcase
+          onAuthSuccess={(user: UserType) => {
+            setCurrentUser(user);
+            // Invalidate users query to refresh the list  
+            queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+          }}
+        />
       </ThemeProvider>
     );
   }
@@ -345,13 +359,13 @@ export function OptimizedMainApp() {
                   <Shield className="w-4 h-4" />
                   Vault
                 </TabsTrigger>
+                <TabsTrigger value="node" className="flex items-center gap-2">
+                  <Gauge className="w-4 h-4" />
+                  Node
+                </TabsTrigger>
                 <TabsTrigger value="settings" className="flex items-center gap-2">
                   <Settings className="w-4 h-4" />
                   Settings
-                </TabsTrigger>
-                <TabsTrigger value="about" className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4" />
-                  About
                 </TabsTrigger>
               </TabsList>
 
@@ -513,11 +527,94 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="vault">
-                <EnhancedStoryVaultSystem
-                  currentUser={currentUser}
-                  availableUsers={realAvailableUsers}
-                  isOffline={isOfflineMode}
-                />
+                <FuturisticCard className="p-6">
+                  <h3 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                    Cipher Vault
+                  </h3>
+                  <p className="text-muted-foreground text-center mb-8">
+                    Military-grade encrypted storage for your sensitive files and data
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {/* Security Status */}
+                    <FuturisticCard className="p-4">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Lock className="w-4 h-4" />
+                        Security Status
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>Encryption:</span>
+                          <Badge variant="default">AES-256</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Storage:</span>
+                          <Badge variant="secondary">Local + Mesh</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Files:</span>
+                          <span className="font-mono">0</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Level:</span>
+                          <span className="font-mono">{currentUser.securityLevel}</span>
+                        </div>
+                      </div>
+                    </FuturisticCard>
+
+                    {/* Upload Section */}
+                    <FuturisticCard className="p-4">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Upload Files
+                      </h4>
+                      <div className="space-y-3">
+                        <Button variant="outline" className="w-full">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Select Files
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Files are encrypted with AES-256 and distributed across the mesh network
+                        </p>
+                      </div>
+                    </FuturisticCard>
+
+                    {/* Quick Actions */}
+                    <FuturisticCard className="p-4">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Quick Actions
+                      </h4>
+                      <div className="space-y-2">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Create Note
+                        </Button>
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View All
+                        </Button>
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export Backup
+                        </Button>
+                      </div>
+                    </FuturisticCard>
+                  </div>
+
+                  {/* File Grid */}
+                  <FuturisticCard className="p-8">
+                    <div className="text-center text-muted-foreground">
+                      <Shield className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Your Vault is Empty</h3>
+                      <p className="mb-4">Upload files to get started with secure, encrypted storage</p>
+                      <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add First File
+                      </Button>
+                    </div>
+                  </FuturisticCard>
+                </FuturisticCard>
               </TabsContent>
 
               <TabsContent value="settings">
@@ -527,45 +624,19 @@ export function OptimizedMainApp() {
                 />
               </TabsContent>
 
-              <TabsContent value="about">
-                <FuturisticCard className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <BookOpen className="w-5 h-5" />
-                    About Meshbook
-                  </h3>
-                  <div className="space-y-4">
-                    <p className="text-muted-foreground">
-                      Meshbook is a decentralized, peer-to-peer communication platform designed for 
-                      secure messaging in environments with limited or unreliable internet connectivity.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FuturisticCard className="p-4">
-                        <h4 className="font-semibold mb-2">🔐 End-to-End Encryption</h4>
-                        <p className="text-sm text-muted-foreground">
-                          All messages are encrypted using military-grade cryptography
-                        </p>
-                      </FuturisticCard>
-                      <FuturisticCard className="p-4">
-                        <h4 className="font-semibold mb-2">📡 Mesh Networking</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Connect directly with nearby devices via Bluetooth and WiFi
-                        </p>
-                      </FuturisticCard>
-                      <FuturisticCard className="p-4">
-                        <h4 className="font-semibold mb-2">🌐 Offline Ready</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Works without internet - perfect for remote areas
-                        </p>
-                      </FuturisticCard>
-                      <FuturisticCard className="p-4">
-                        <h4 className="font-semibold mb-2">🚀 Real-Time</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Instant messaging with live network visualization
-                        </p>
-                      </FuturisticCard>
-                    </div>
-                  </div>
-                </FuturisticCard>
+              <TabsContent value="node">
+                <EnhancedNodeSystem
+                  currentUser={currentUser}
+                  isOffline={isOfflineMode}
+                />
+              </TabsContent>
+
+              <TabsContent value="settings">
+                <UnifiedSettingsProfile
+                  currentUser={currentUser}
+                  onUserUpdate={handleUserUpdate}
+                  onClose={() => setShowSettings(false)}
+                />
               </TabsContent>
             </Tabs>
           </main>

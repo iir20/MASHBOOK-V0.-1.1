@@ -43,7 +43,7 @@ interface Story {
 }
 
 export function EnhancedStoryVaultSystem({ currentUser, availableUsers, isOffline }: StoryVaultSystemProps) {
-  const [activeTab, setActiveTab] = useState<'stories' | 'vault'>('stories');
+  const [activeTab, setActiveTab] = useState<'stories'>('stories');
   const [newStoryContent, setNewStoryContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [vaultFiles, setVaultFiles] = useState<any[]>([]);
@@ -164,28 +164,15 @@ export function EnhancedStoryVaultSystem({ currentUser, availableUsers, isOfflin
 
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="flex rounded-lg bg-slate-700/30 p-1">
-        <Button
-          variant={activeTab === 'stories' ? 'default' : 'ghost'}
-          className="flex-1"
-          onClick={() => setActiveTab('stories')}
-        >
-          <Sparkles className="w-4 h-4 mr-2" />
-          Stories
-        </Button>
-        <Button
-          variant={activeTab === 'vault' ? 'default' : 'ghost'}
-          className="flex-1"
-          onClick={() => setActiveTab('vault')}
-        >
-          <Shield className="w-4 h-4 mr-2" />
-          Vault
-        </Button>
+      {/* Stories Header */}
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
+          Ephemeral Stories
+        </h2>
+        <p className="text-muted-foreground">Share moments that disappear in 24 hours</p>
       </div>
 
-      {activeTab === 'stories' ? (
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Create Story */}
           <FuturisticCard className="p-6">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -332,133 +319,6 @@ export function EnhancedStoryVaultSystem({ currentUser, availableUsers, isOfflin
             </div>
           </FuturisticCard>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Vault */}
-          <FuturisticCard className="p-6">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              Cipher Vault
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Upload Section */}
-              <FuturisticCard className="p-4">
-                <h4 className="font-semibold mb-3 flex items-center gap-2">
-                  <Upload className="w-4 h-4" />
-                  Upload Files
-                </h4>
-                <div className="space-y-3">
-                  <input
-                    type="file"
-                    id="vault-file"
-                    multiple
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        // Handle vault file upload
-                        toast({
-                          title: "Feature Coming Soon",
-                          description: "Vault file upload will be available in the next update",
-                        });
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => document.getElementById('vault-file')?.click()}
-                    className="w-full"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Select Files
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Files are encrypted with AES-256
-                  </p>
-                </div>
-              </FuturisticCard>
-
-              {/* Security Stats */}
-              <FuturisticCard className="p-4">
-                <h4 className="font-semibold mb-3 flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Security Status
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Encryption:</span>
-                    <Badge variant="default">AES-256</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Storage:</span>
-                    <Badge variant="secondary">Local</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Files:</span>
-                    <span className="font-mono">{vaultFiles.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Level:</span>
-                    <span className="font-mono">{currentUser.securityLevel}</span>
-                  </div>
-                </div>
-              </FuturisticCard>
-
-              {/* Quick Actions */}
-              <FuturisticCard className="p-4">
-                <h4 className="font-semibold mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Quick Actions
-                </h4>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Create Note
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Eye className="w-4 h-4 mr-2" />
-                    View All
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                  </Button>
-                </div>
-              </FuturisticCard>
-            </div>
-
-            {/* File List */}
-            <div className="mt-6">
-              <h4 className="font-semibold mb-3">Encrypted Files</h4>
-              {vaultFiles.length === 0 ? (
-                <FuturisticCard className="p-8">
-                  <div className="text-center text-muted-foreground">
-                    <Shield className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Your vault is empty</p>
-                    <p className="text-sm">Upload files to get started with secure storage</p>
-                  </div>
-                </FuturisticCard>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {vaultFiles.map((file, index) => (
-                    <FuturisticCard key={index} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          <span className="font-medium">{file.name}</span>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </FuturisticCard>
-                  ))}
-                </div>
-              )}
-            </div>
-          </FuturisticCard>
-        </div>
-      )}
     </div>
   );
 }
