@@ -164,7 +164,7 @@ export function LiveMeshNetworkMap({
       packetsTransmitted: prev.packetsTransmitted + 1,
       averageLatency: Math.round(nodes.reduce((acc, node) => acc + node.latency, 0) / nodes.length)
     }));
-  }, [currentUser?.deviceId, availableUsers.length]); // Only depend on stable values
+  }, [currentUser?.deviceId, availableUsers]); // Properly depend on availableUsers array
 
   // Stable animation loop without infinite updates
   const animate = useCallback(() => {
@@ -283,11 +283,15 @@ export function LiveMeshNetworkMap({
     });
 
     animationRef.current = requestAnimationFrame(animate);
-  }, [isAnimating, meshNodes, connections, selectedNode]); // Remove generateMeshNodes from dependencies
+  }, [isAnimating, meshNodes, connections, selectedNode]); // Stable dependencies only
 
-  // Initialize and start animation
+  // Initialize mesh nodes only when users change
   useEffect(() => {
     generateMeshNodes();
+  }, [generateMeshNodes]); // Use the memoized callback
+
+  // Start animation loop separately
+  useEffect(() => {
     if (isAnimating) {
       animationRef.current = requestAnimationFrame(animate);
     }
@@ -297,19 +301,18 @@ export function LiveMeshNetworkMap({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [animate, generateMeshNodes, isAnimating]);
+  }, [isAnimating]); // Only depend on animation state
 
-  // Real-time data refresh
+  // Real-time data refresh with stable dependencies
   useEffect(() => {
     if (isOffline) return;
 
     const interval = setInterval(() => {
       refetch();
-      generateMeshNodes();
-    }, 2000);
+    }, 5000); // Less aggressive refresh
 
     return () => clearInterval(interval);
-  }, [isOffline, refetch, generateMeshNodes]);
+  }, [isOffline, refetch]); // Remove generateMeshNodes from dependencies
 
   // Handle canvas click
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {

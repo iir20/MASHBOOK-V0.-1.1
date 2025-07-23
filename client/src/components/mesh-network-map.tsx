@@ -41,7 +41,7 @@ export function MeshNetworkMap({ currentUser, availableUsers, wsState }: MeshNet
   const [animationFrame, setAnimationFrame] = useState(0);
 
   // Get all real users from database
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
     refetchInterval: 10000 // Refresh every 10 seconds
   });

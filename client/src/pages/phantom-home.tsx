@@ -1,5 +1,5 @@
-import { EnhancedMainApp } from '@/components/enhanced-main-app';
+import { OptimizedMainApp } from '@/components/optimized-main-app';
 
 export default function PhantomHome() {
-  return <EnhancedMainApp />;
+  return <OptimizedMainApp />;
 }
