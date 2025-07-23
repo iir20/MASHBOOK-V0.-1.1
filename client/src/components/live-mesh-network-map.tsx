@@ -97,7 +97,7 @@ export function LiveMeshNetworkMap({
     gcTime: 0
   });
 
-  // Generate realistic mesh nodes with live data
+  // Generate realistic mesh nodes with live data (memoized to prevent infinite loops)
   const generateMeshNodes = useCallback(() => {
     if (!currentUser) return;
 
@@ -106,8 +106,10 @@ export function LiveMeshNetworkMap({
     const centerY = 300;
     
     const nodes: LiveMeshNode[] = allUsers.map((user, index) => {
-      const angle = (index / allUsers.length) * 2 * Math.PI + Date.now() / 10000;
-      const radius = 120 + Math.sin(Date.now() / 5000 + index) * 80;
+      const baseAngle = (index / allUsers.length) * 2 * Math.PI;
+      const timeOffset = (Date.now() / 10000) % (2 * Math.PI);
+      const angle = baseAngle + timeOffset;
+      const radius = 120 + Math.sin(timeOffset + index) * 80;
       const x = centerX + Math.cos(angle) * radius;
       const y = centerY + Math.sin(angle) * radius;
       
@@ -115,23 +117,23 @@ export function LiveMeshNetworkMap({
         id: user.deviceId,
         user,
         position: { x, y },
-        signalStrength: Math.max(20, 90 + Math.sin(Date.now() / 3000 + index) * 15),
+        signalStrength: Math.max(20, 90 + Math.sin(timeOffset + index) * 15),
         distance: radius / 20,
         connectionType: ['bluetooth', 'wifi', 'mesh', 'direct'][index % 4] as any,
         isRelay: index % 3 === 0,
         hopCount: Math.floor(radius / 50),
         lastSeen: new Date(),
-        dataRate: Math.max(10, 100 + Math.sin(Date.now() / 2000 + index) * 50),
-        packetLoss: Math.max(0, 5 + Math.sin(Date.now() / 4000 + index) * 3),
-        latency: Math.max(10, 50 + Math.sin(Date.now() / 3500 + index) * 20),
+        dataRate: Math.max(10, 100 + Math.sin(timeOffset * 2 + index) * 50),
+        packetLoss: Math.max(0, 5 + Math.sin(timeOffset * 3 + index) * 3),
+        latency: Math.max(10, 50 + Math.sin(timeOffset * 2.5 + index) * 20),
         isActive: user.isOnline !== false,
-        connections: allUsers.filter((_, i) => i !== index && Math.random() > 0.6).map(u => u.deviceId)
+        connections: allUsers.filter((_, i) => i !== index && (i + index) % 3 === 0).map(u => u.deviceId)
       };
     });
 
     setMeshNodes(nodes);
 
-    // Generate connections
+    // Generate stable connections
     const newConnections: NetworkConnection[] = [];
     nodes.forEach(node => {
       node.connections.forEach(connId => {
@@ -142,10 +144,10 @@ export function LiveMeshNetworkMap({
           newConnections.push({
             from: node.id,
             to: connId,
-            strength: Math.random() * 100,
+            strength: 60 + Math.sin(Date.now() / 5000) * 40,
             type: ['primary', 'secondary', 'backup'][Math.floor(Math.random() * 3)] as any,
-            dataFlow: Math.random() * 100,
-            isActive: Math.random() > 0.2
+            dataFlow: 50 + Math.sin(Date.now() / 3000) * 50,
+            isActive: true
           });
         }
       });
@@ -159,12 +161,12 @@ export function LiveMeshNetworkMap({
       activeConnections: newConnections.filter(c => c.isActive).length,
       signalStrength: Math.round(nodes.reduce((acc, node) => acc + node.signalStrength, 0) / nodes.length),
       dataTransfer: nodes.reduce((acc, node) => acc + node.dataRate, 0),
-      packetsTransmitted: prev.packetsTransmitted + Math.floor(Math.random() * 10),
+      packetsTransmitted: prev.packetsTransmitted + 1,
       averageLatency: Math.round(nodes.reduce((acc, node) => acc + node.latency, 0) / nodes.length)
     }));
-  }, [currentUser, availableUsers]);
+  }, [currentUser?.deviceId, availableUsers.length]); // Only depend on stable values
 
-  // Animation loop
+  // Stable animation loop without infinite updates
   const animate = useCallback(() => {
     if (!isAnimating) return;
 
@@ -224,16 +226,24 @@ export function LiveMeshNetworkMap({
       }
     });
 
-    // Draw nodes
-    meshNodes.forEach(node => {
-      const { x, y } = node.position;
-      const pulseSize = 5 + Math.sin(Date.now() / 1000 + node.signalStrength) * 3;
+    // Draw nodes with live positioning
+    const currentTime = Date.now();
+    meshNodes.forEach((node, index) => {
+      // Calculate live position
+      const baseAngle = (index / meshNodes.length) * 2 * Math.PI;
+      const timeOffset = (currentTime / 10000) % (2 * Math.PI);
+      const angle = baseAngle + timeOffset;
+      const radius = 120 + Math.sin(timeOffset + index) * 80;
+      const x = 400 + Math.cos(angle) * radius;
+      const y = 300 + Math.sin(angle) * radius;
+      
+      const pulseSize = 5 + Math.sin(currentTime / 1000 + node.signalStrength) * 3;
       const isSelected = selectedNode?.id === node.id;
 
       // Signal range circle
       if (node.isActive) {
         const rangeRadius = (node.signalStrength / 100) * 60;
-        ctx.strokeStyle = `rgba(0, 255, 255, ${0.1 + Math.sin(Date.now() / 2000) * 0.1})`;
+        ctx.strokeStyle = `rgba(0, 255, 255, ${0.1 + Math.sin(currentTime / 2000) * 0.1})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(x, y, rangeRadius, 0, 2 * Math.PI);
@@ -272,11 +282,8 @@ export function LiveMeshNetworkMap({
       }
     });
 
-    // Update mesh nodes positions for animation
-    generateMeshNodes();
-
     animationRef.current = requestAnimationFrame(animate);
-  }, [isAnimating, meshNodes, connections, selectedNode, generateMeshNodes]);
+  }, [isAnimating, meshNodes, connections, selectedNode]); // Remove generateMeshNodes from dependencies
 
   // Initialize and start animation
   useEffect(() => {
