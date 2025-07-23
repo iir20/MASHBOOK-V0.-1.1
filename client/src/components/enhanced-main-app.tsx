@@ -29,6 +29,8 @@ import { EnhancedAuthRegistration } from './enhanced-auth-registration';
 import { FacebookMenuBar } from './facebook-menu-bar';
 import { CompleteUserProfile } from './complete-user-profile';
 import { EnhancedMeshNetworking } from './enhanced-mesh-networking';
+import { EnhancedProfileEditor } from './enhanced-profile-editor';
+import { EnhancedSettingsPanel } from './enhanced-settings-panel';
 
 type UserType = User;
 
@@ -41,10 +43,19 @@ interface WSState {
 
 export function EnhancedMainApp() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [activeTab, setActiveTab] = useState<'stories' | 'messages' | 'users' | 'network' | 'mesh' | 'profile'>('stories');
+  const [activeTab, setActiveTab] = useState<'stories' | 'messages' | 'users' | 'network' | 'mesh' | 'profile' | 'settings'>('stories');
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(() => {
+    // Load offline mode state from localStorage with persistence
+    try {
+      const saved = localStorage.getItem('meshbook-offline-mode');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
   const [wsState, setWsState] = useState<WSState>({
     isConnected: false,
     connectionQuality: 'offline',
@@ -219,12 +230,30 @@ export function EnhancedMainApp() {
 
   const handleOfflineMode = (enabled: boolean) => {
     setIsOfflineMode(enabled);
+    // Ensure persistence with error handling
+    try {
+      localStorage.setItem('meshbook-offline-mode', JSON.stringify(enabled));
+      localStorage.setItem('meshbook-offline-timestamp', Date.now().toString());
+    } catch (error) {
+      console.warn('Failed to save offline mode preference:', error);
+    }
+    
     if (enabled) {
       toast({
         title: "Offline Mode Enabled",
-        description: "You can still browse content and queue messages",
+        description: "You can browse cached content and queue messages for later",
+      });
+    } else {
+      toast({
+        title: "Online Mode Enabled", 
+        description: "Reconnecting to the mesh network...",
       });
     }
+  };
+
+  const handleUserUpdate = (updatedUser: UserType) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem('meshbook-user', JSON.stringify(updatedUser));
   };
 
   // Show auth/registration if no user
@@ -273,6 +302,10 @@ export function EnhancedMainApp() {
               <TabsTrigger value="mesh" className="flex items-center gap-2 px-6 py-3">
                 <Network className="w-4 h-4" />
                 <span>Mesh</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="flex items-center gap-2 px-6 py-3">
+                <Settings className="w-4 h-4" />
+                <span>Settings</span>
               </TabsTrigger>
               <TabsTrigger value="network" className="flex items-center gap-2 px-6 py-3">
                 <Wifi className="w-4 h-4" />
@@ -418,11 +451,18 @@ export function EnhancedMainApp() {
                         </div>
                         
                         <div className="flex flex-wrap gap-3">
-                          <Button size="lg">
+                          <Button 
+                            size="lg"
+                            onClick={() => setShowProfileEditor(true)}
+                          >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit Profile
                           </Button>
-                          <Button variant="outline" size="lg">
+                          <Button 
+                            variant="outline" 
+                            size="lg"
+                            onClick={() => setActiveTab('settings')}
+                          >
                             <Settings className="w-4 h-4 mr-2" />
                             Settings
                           </Button>
@@ -444,6 +484,14 @@ export function EnhancedMainApp() {
                 </Card>
               </div>
             </TabsContent>
+
+            <TabsContent value="settings" className="h-full m-0">
+              <EnhancedSettingsPanel
+                isOfflineMode={isOfflineMode}
+                onOfflineModeChange={handleOfflineMode}
+                onLogout={handleLogout}
+              />
+            </TabsContent>
           </div>
         </Tabs>
       </div>
@@ -461,6 +509,19 @@ export function EnhancedMainApp() {
             setShowUserProfile(false);
           }}
         />
+      )}
+
+      {/* Enhanced Profile Editor Modal */}
+      {showProfileEditor && currentUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <EnhancedProfileEditor
+              user={currentUser}
+              onUserUpdate={handleUserUpdate}
+              onClose={() => setShowProfileEditor(false)}
+            />
+          </div>
+        </div>
       )}
 
       {/* Footer Status */}

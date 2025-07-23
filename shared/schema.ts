@@ -100,16 +100,6 @@ export const insertStorySchema = createInsertSchema(stories).pick({
 
 // Type exports
 export type User = typeof users.$inferSelect;
-export type Story = typeof stories.$inferSelect;
-export type Message = typeof messages.$inferSelect;
-export type MeshNode = typeof meshNodes.$inferSelect;
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type InsertStory = z.infer<typeof insertStorySchema>;
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-export type InsertMeshNode = z.infer<typeof insertMeshNodeSchema>;
-
-export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type Message = typeof messages.$inferSelect;

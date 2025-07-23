@@ -53,8 +53,11 @@
     background: linear-gradient(135deg, var(--cyber-dark) 0%, var(--cyber-dark-alt) 100%);
     color: var(--foreground);
     min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
     overflow-x: hidden;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    touch-action: manipulation; /* Disable double-tap zoom */
   }
   
   * {
@@ -248,6 +251,27 @@
   
   .bg-gradient-radial {
     background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
+  
+  .safe-area-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-pt {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  .mobile-tap {
+    -webkit-tap-highlight-color: rgba(0, 255, 255, 0.1);
   }
 }
 
