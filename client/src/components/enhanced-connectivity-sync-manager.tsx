@@ -11,7 +11,7 @@ import type { User } from '@shared/schema';
 import {
   Wifi, WifiOff, Bluetooth, Globe, Signal, Activity, 
   RefreshCw, CheckCircle, XCircle, AlertTriangle,
-  Radio, Network, Zap, Sync, Database, Upload, Download
+  Radio, Network, Zap, RotateCcw as Sync, Database, Upload, Download
 } from 'lucide-react';
 
 interface SyncStatus {
