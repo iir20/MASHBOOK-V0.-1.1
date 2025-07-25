@@ -61,6 +61,15 @@ export function Futuristic3DOrbitalStorySystem({
   const [animationSpeed, setAnimationSpeed] = useState(1);
   const [isPlaying, setIsPlaying] = useState(true);
   
+  // Create story form state
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    content: '',
+    mediaFile: null as File | null,
+    mediaType: null as string | null,
+    mediaUrl: null as string | null
+  });
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const { toast } = useToast();
@@ -133,31 +142,65 @@ export function Futuristic3DOrbitalStorySystem({
         const y = centerY + Math.sin(angle + orbitalCamera.rotation) * story.orbitalPosition.radius * orbitalCamera.zoom * Math.cos(orbitalCamera.tilt);
         const z = Math.sin(angle + orbitalCamera.rotation) * story.orbitalPosition.radius * Math.sin(orbitalCamera.tilt);
 
-        // Draw orbital trail
+        // Enhanced orbital trail with depth and glow
+        const trailOpacity = 0.4 + Math.sin(time * 2) * 0.1 + z * 0.002;
+        const trailGradient = ctx.createRadialGradient(centerX, centerY, story.orbitalPosition.radius * 0.8, centerX, centerY, story.orbitalPosition.radius * 1.2);
+        trailGradient.addColorStop(0, `rgba(99, 102, 241, ${trailOpacity})`);
+        trailGradient.addColorStop(0.5, `rgba(139, 69, 19, ${trailOpacity * 0.6})`);
+        trailGradient.addColorStop(1, 'rgba(0,0,0,0)');
+        
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(99, 102, 241, ${0.3 + z * 0.001})`;
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = trailGradient;
+        ctx.lineWidth = 2 + Math.sin(time) * 0.5;
         ctx.arc(centerX, centerY, story.orbitalPosition.radius * orbitalCamera.zoom, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Draw story orb
-        const orbSize = 8 + Math.max(0, z * 0.05);
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, orbSize);
-        gradient.addColorStop(0, story.mediaType === 'video' ? '#ff6b6b' : story.mediaType === 'image' ? '#4ecdc4' : '#45b7d1');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.3)');
+        // Enhanced story orb with sophisticated 3D appearance
+        const orbSize = 12 + Math.max(0, z * 0.08) + Math.sin(time * 3 + index) * 2;
+        const orbColor = story.mediaType === 'video' ? '#ff6b6b' : story.mediaType === 'image' ? '#4ecdc4' : '#45b7d1';
+        const orbSecondary = story.mediaType === 'video' ? '#ff9999' : story.mediaType === 'image' ? '#7ef0e8' : '#73c5f0';
         
+        // Create sophisticated gradient with depth
+        const orbGradient = ctx.createRadialGradient(x - 3, y - 3, 0, x, y, orbSize);
+        orbGradient.addColorStop(0, orbSecondary);
+        orbGradient.addColorStop(0.3, orbColor);
+        orbGradient.addColorStop(0.7, orbColor);
+        orbGradient.addColorStop(1, 'rgba(0,0,0,0.8)');
+        
+        // Draw main orb
         ctx.beginPath();
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = orbGradient;
         ctx.arc(x, y, orbSize, 0, Math.PI * 2);
         ctx.fill();
 
-        // Add glow effect
-        ctx.shadowColor = story.mediaType === 'video' ? '#ff6b6b' : story.mediaType === 'image' ? '#4ecdc4' : '#45b7d1';
-        ctx.shadowBlur = 15;
+        // Add dynamic glow effect with pulsing
+        const glowIntensity = 20 + Math.sin(time * 4 + index) * 8;
+        ctx.shadowColor = orbColor;
+        ctx.shadowBlur = glowIntensity;
         ctx.beginPath();
-        ctx.arc(x, y, orbSize * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${parseInt(orbColor.slice(1, 3), 16)}, ${parseInt(orbColor.slice(3, 5), 16)}, ${parseInt(orbColor.slice(5, 7), 16)}, 0.6)`;
+        ctx.arc(x, y, orbSize * 0.7, 0, Math.PI * 2);
         ctx.fill();
+        
+        // Add sparkle effect
+        if (Math.random() < 0.1) {
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(x + (Math.random() - 0.5) * orbSize, y + (Math.random() - 0.5) * orbSize, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
         ctx.shadowBlur = 0;
+
+        // Add story content preview ring
+        if (orbSize > 15) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(255, 255, 255, 0.3)`;
+          ctx.lineWidth = 1;
+          ctx.arc(x, y, orbSize + 4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
         // Store position for click detection
         (story as any).renderX = x;
@@ -258,15 +301,63 @@ export function Futuristic3DOrbitalStorySystem({
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (newStory) => {
       toast({
         title: "Story Launched",
         description: "Your story is now orbiting in the mesh network!",
       });
       setShowCreateStory(false);
+      setCreateForm({
+        title: '',
+        content: '',
+        mediaFile: null,
+        mediaType: null,
+        mediaUrl: null
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
     },
+    onError: (error: any) => {
+      toast({
+        title: "Launch Failed",
+        description: error.message || "Failed to launch story into orbit",
+      });
+    }
   });
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setCreateForm(prev => ({
+        ...prev,
+        mediaFile: file,
+        mediaType: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
+        mediaUrl: URL.createObjectURL(file)
+      }));
+    }
+  };
+
+  // Handle story creation
+  const handleCreateStory = () => {
+    if (!currentUser || !createForm.title.trim() || !createForm.content.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both title and content for your story",
+      });
+      return;
+    }
+
+    const storyData: InsertStory & { mediaFile?: File } = {
+      userId: currentUser.id,
+      title: createForm.title.trim(),
+      content: createForm.content.trim(),
+      mediaUrl: createForm.mediaUrl,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+      mediaFile: createForm.mediaFile || undefined
+    };
+
+    createStoryMutation.mutate(storyData);
+  };
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-gray-900 via-purple-900 to-black">
@@ -556,33 +647,78 @@ export function Futuristic3DOrbitalStorySystem({
               <div className="space-y-4">
                 <Input
                   placeholder="Story title..."
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
                   className="bg-black/30 border-purple-500/50 text-white placeholder-gray-400"
                 />
                 <Textarea
                   placeholder="What's happening in your world?"
+                  value={createForm.content}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, content: e.target.value }))}
                   className="bg-black/30 border-purple-500/50 text-white placeholder-gray-400 min-h-[100px]"
                 />
                 
+                {/* Media Preview */}
+                {createForm.mediaUrl && (
+                  <div className="relative bg-black/20 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-purple-300">Media attached</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setCreateForm(prev => ({ ...prev, mediaFile: null, mediaType: null, mediaUrl: null }))}
+                        className="text-gray-400 hover:text-white h-6 w-6 p-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    {createForm.mediaType === 'image' && (
+                      <img src={createForm.mediaUrl} alt="Preview" className="w-full h-32 object-cover rounded" />
+                    )}
+                    {createForm.mediaType === 'video' && (
+                      <video src={createForm.mediaUrl} className="w-full h-32 object-cover rounded" />
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex items-center space-x-2">
-                  <Button size="sm" variant="outline" className="border-purple-500/50">
-                    <Camera className="w-4 h-4 mr-1" />
-                    Photo
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-purple-500/50">
-                    <Video className="w-4 h-4 mr-1" />
-                    Video
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-purple-500/50">
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="media-upload"
+                  />
+                  <label htmlFor="media-upload">
+                    <Button size="sm" variant="outline" className="border-purple-500/50" asChild>
+                      <span>
+                        <Camera className="w-4 h-4 mr-1" />
+                        Media
+                      </span>
+                    </Button>
+                  </label>
+                  <Button size="sm" variant="outline" className="border-purple-500/50" disabled>
                     <MapPin className="w-4 h-4 mr-1" />
                     Location
                   </Button>
                 </div>
                 
                 <Button 
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  onClick={handleCreateStory}
+                  disabled={createStoryMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Launch into Orbit
+                  {createStoryMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Launching...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Launch into Orbit
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

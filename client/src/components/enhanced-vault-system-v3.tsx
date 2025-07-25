@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { offlineStorage } from '@/lib/offline-storage';
+import { vaultEncryption, type EncryptedFile } from '@/lib/vault-encryption';
 import type { User } from '@shared/schema';
 
 import {
@@ -29,6 +29,8 @@ interface VaultFile {
   isStarred: boolean;
   description: string;
   compressionRatio: number;
+  securityLevel: string;
+  checksum: string;
 }
 
 interface EnhancedVaultSystemV3Props {
@@ -48,6 +50,10 @@ export function EnhancedVaultSystemV3({ currentUser, isOffline }: EnhancedVaultS
   const [selectedFile, setSelectedFile] = useState<VaultFile | null>(null);
   const [encryptionKey, setEncryptionKey] = useState('');
   const [storageInfo, setStorageInfo] = useState({ used: 0, total: 0, compressed: 0 });
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [currentAction, setCurrentAction] = useState<'encrypt' | 'decrypt' | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [securityMode, setSecurityMode] = useState<'basic' | 'advanced' | 'military'>('military');
   
   const { toast } = useToast();
 
@@ -77,472 +83,391 @@ export function EnhancedVaultSystemV3({ currentUser, isOffline }: EnhancedVaultS
     });
   };
 
-  // Encrypt data using Web Crypto API
-  const encryptData = async (data: string, password: string): Promise<string> => {
-    try {
-      const encoder = new TextEncoder();
-      const dataBuffer = encoder.encode(data);
-      const passwordBuffer = encoder.encode(password);
-      
-      const key = await crypto.subtle.importKey(
-        'raw',
-        passwordBuffer,
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits', 'deriveKey']
-      );
-      
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      const derivedKey = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt: salt,
-          iterations: 100000,
-          hash: 'SHA-256'
-        },
-        key,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      );
-      
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: iv },
-        derivedKey,
-        dataBuffer
-      );
-      
-      const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
-      result.set(salt, 0);
-      result.set(iv, salt.length);
-      result.set(new Uint8Array(encrypted), salt.length + iv.length);
-      
-      return btoa(String.fromCharCode.apply(null, Array.from(result)));
-    } catch (error) {
-      console.error('Encryption failed:', error);
-      throw new Error('Failed to encrypt data');
-    }
-  };
-
-  // Decrypt data
-  const decryptData = async (encryptedData: string, password: string): Promise<string> => {
-    try {
-      const data = new Uint8Array(atob(encryptedData).split('').map(c => c.charCodeAt(0)));
-      const salt = data.slice(0, 16);
-      const iv = data.slice(16, 28);
-      const encrypted = data.slice(28);
-      
-      const encoder = new TextEncoder();
-      const passwordBuffer = encoder.encode(password);
-      
-      const key = await crypto.subtle.importKey(
-        'raw',
-        passwordBuffer,
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits', 'deriveKey']
-      );
-      
-      const derivedKey = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt: salt,
-          iterations: 100000,
-          hash: 'SHA-256'
-        },
-        key,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      );
-      
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: iv },
-        derivedKey,
-        encrypted
-      );
-      
-      return new TextDecoder().decode(decrypted);
-    } catch (error) {
-      console.error('Decryption failed:', error);
-      throw new Error('Failed to decrypt data - check password');
-    }
-  };
-
-  // Handle file upload
+  // Enhanced file upload with military-grade encryption
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const uploadedFiles = event.target.files;
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File Too Large",
-        description: "Files must be smaller than 10MB",
-        variant: "destructive"
-      });
-      return;
-    }
+    for (const file of Array.from(uploadedFiles)) {
+      if (!encryptionKey) {
+        toast({
+          title: "Encryption Required",
+          description: "Please set an encryption password before uploading files.",
+          variant: "destructive"
+        });
+        setShowPasswordDialog(true);
+        setCurrentAction('encrypt');
+        return;
+      }
 
-    setIsUploading(true);
-    setUploadProgress(0);
+      setIsUploading(true);
+      setUploadProgress(0);
 
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const data = e.target?.result as string;
+      try {
+        // Use military-grade encryption
+        const encryptedFile = await vaultEncryption.encryptFile(file, encryptionKey);
         
-        // Compress data
-        const { compress } = await import('@/lib/lz-string');
-        const compressedData = compress(data);
-        const compressionRatio = compressedData.length / data.length;
-        
-        // Encrypt if password provided
-        let finalData = compressedData;
-        let isEncrypted = false;
-        
-        if (encryptionKey) {
-          finalData = await encryptData(compressedData, encryptionKey);
-          isEncrypted = true;
-        }
+        // Calculate compression ratio
+        const originalSize = file.size;
+        const encryptedSize = encryptedFile.encryptedData.byteLength;
+        const compressionRatio = ((originalSize - encryptedSize) / originalSize) * 100;
 
-        const newFile: VaultFile = {
-          id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          encryptedData: finalData,
-          isEncrypted,
+        const vaultFile: VaultFile = {
+          id: encryptedFile.id,
+          name: encryptedFile.name,
+          size: encryptedFile.size,
+          type: encryptedFile.type,
+          encryptedData: vaultEncryption.exportEncryptedFile(encryptedFile),
+          isEncrypted: true,
           tags: [],
-          createdAt: new Date(),
+          createdAt: new Date(encryptedFile.timestamp),
           lastAccessed: new Date(),
           isStarred: false,
           description: '',
-          compressionRatio
+          compressionRatio: Math.max(0, compressionRatio),
+          securityLevel: vaultEncryption.getEncryptionInfo().securityLevel,
+          checksum: encryptedFile.checksum
         };
 
-        const updatedFiles = [newFile, ...files];
-        saveFiles(updatedFiles);
-        
+        const newFiles = [...files, vaultFile];
+        saveFiles(newFiles);
+
         toast({
-          title: "File Uploaded",
-          description: `${file.name} saved securely to vault`
+          title: "File Encrypted & Stored",
+          description: `${file.name} has been secured with military-grade encryption`,
         });
-        
-        setEncryptionKey('');
-      };
-      
-      reader.onprogress = (e) => {
-        if (e.lengthComputable) {
-          setUploadProgress((e.loaded / e.total) * 100);
-        }
-      };
-      
-      reader.readAsDataURL(file);
-    } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: "Failed to save file to vault",
-        variant: "destructive"
-      });
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+
+        setUploadProgress(100);
+      } catch (error: any) {
+        toast({
+          title: "Upload Failed",
+          description: error.message || "Failed to encrypt and store file",
+          variant: "destructive"
+        });
+      } finally {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }
     }
   };
 
-  // Handle file download
-  const handleFileDownload = async (file: VaultFile) => {
+  // Password strength calculator
+  const calculatePasswordStrength = (password: string): number => {
+    let strength = 0;
+    if (password.length >= 8) strength += 25;
+    if (password.length >= 12) strength += 25;
+    if (/[A-Z]/.test(password)) strength += 15;
+    if (/[a-z]/.test(password)) strength += 10;
+    if (/[0-9]/.test(password)) strength += 15;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 10;
+    return Math.min(100, strength);
+  };
+
+  // Handle password change
+  const handlePasswordChange = (password: string) => {
+    setEncryptionKey(password);
+    setPasswordStrength(calculatePasswordStrength(password));
+  };
+
+  // Decrypt and download file
+  const handleFileDecrypt = async (file: VaultFile) => {
+    if (!encryptionKey) {
+      toast({
+        title: "Password Required",
+        description: "Please enter your encryption password to decrypt this file.",
+        variant: "destructive"
+      });
+      setShowPasswordDialog(true);
+      setCurrentAction('decrypt');
+      setSelectedFile(file);
+      return;
+    }
+
     try {
-      let data = file.encryptedData;
-      
-      // Decrypt if encrypted
-      if (file.isEncrypted) {
-        if (!encryptionKey) {
-          toast({
-            title: "Password Required",
-            description: "Enter the encryption password to download this file",
-            variant: "destructive"
-          });
-          return;
-        }
-        data = await decryptData(data, encryptionKey);
-      }
-      
-      // Decompress
-      const { decompress } = await import('@/lib/lz-string');
-      const decompressedData = decompress(data);
+      const encryptedFile = vaultEncryption.importEncryptedFile(file.encryptedData);
+      const decryptedFile = await vaultEncryption.decryptFile(encryptedFile, encryptionKey);
       
       // Create download link
-      const link = document.createElement('a');
-      link.href = decompressedData || data;
-      link.download = file.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
+      const url = URL.createObjectURL(decryptedFile);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = decryptedFile.name;
+      a.click();
+      URL.revokeObjectURL(url);
+
       // Update last accessed
-      const updatedFiles = files.map(f => 
-        f.id === file.id ? { ...f, lastAccessed: new Date() } : f
-      );
+      file.lastAccessed = new Date();
+      const updatedFiles = files.map(f => f.id === file.id ? file : f);
       saveFiles(updatedFiles);
-      
+
       toast({
-        title: "File Downloaded",
-        description: `${file.name} downloaded successfully`
+        title: "File Decrypted",
+        description: `${file.name} has been successfully decrypted and downloaded`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Download Failed",
-        description: "Failed to download file - check password",
+        title: "Decryption Failed",
+        description: error.message || "Failed to decrypt file - check your password",
         variant: "destructive"
       });
     }
   };
 
-  // Filter files
+  // Generate secure password
+  const generateSecurePassword = () => {
+    const password = vaultEncryption.generateSecurePassword(16);
+    setEncryptionKey(password);
+    setPasswordStrength(calculatePasswordStrength(password));
+    toast({
+      title: "Secure Password Generated",
+      description: "A military-grade password has been generated. Please save it securely.",
+    });
+  };
+
+  // Filter files based on search and type
   const filteredFiles = files.filter(file => {
     const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          file.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
     const matchesType = filterType === 'all' || 
-      (filterType === 'images' && file.type.startsWith('image/')) ||
-      (filterType === 'videos' && file.type.startsWith('video/')) ||
-      (filterType === 'audio' && file.type.startsWith('audio/')) ||
-      (filterType === 'documents' && file.type.includes('document'));
-    
-    const matchesEncryption = showEncrypted || !file.isEncrypted;
+                       (filterType === 'images' && file.type.startsWith('image/')) ||
+                       (filterType === 'videos' && file.type.startsWith('video/')) ||
+                       (filterType === 'audio' && file.type.startsWith('audio/')) ||
+                       (filterType === 'documents' && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !file.type.startsWith('audio/'));
+    const matchesEncryption = showEncrypted ? true : !file.isEncrypted;
     
     return matchesSearch && matchesType && matchesEncryption;
   });
 
-  // Get file icon
-  const getFileIcon = (type: string) => {
-    if (type.startsWith('image/')) return Image;
-    if (type.startsWith('video/')) return Video;
-    if (type.startsWith('audio/')) return Music;
-    return File;
-  };
-
-  // Format file size
-  const formatSize = (bytes: number): string => {
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 B';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Secure Vault</h2>
-          <p className="text-gray-400">Local encrypted file storage</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="text-green-400 border-green-400">
-            {isOffline ? 'Offline Mode' : 'Online Mode'}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Storage Info */}
-      <Card className="bg-gray-800/50 border-gray-700">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">Storage Used</span>
-            <span className="text-sm text-white">
-              {formatSize(storageInfo.used)} / {formatSize(storageInfo.total)}
-            </span>
-          </div>
-          <Progress 
-            value={(storageInfo.used / storageInfo.total) * 100} 
-            className="h-2"
-          />
-          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-            <span>Compression: {formatSize(storageInfo.compressed)} saved</span>
-            <span>{files.length} files stored</span>
+    <div className="space-y-6">
+      {/* Security Header */}
+      <Card className="border-red-500/30 bg-gradient-to-r from-red-900/20 to-orange-900/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-400">
+            <Shield className="w-5 h-5" />
+            Military-Grade Vault Security
+            <Badge variant="destructive">AES-256-GCM</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm font-medium">Encryption Password</span>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="Enter secure password..."
+                  value={encryptionKey}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={generateSecurePassword}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-500/50 hover:border-blue-400"
+                >
+                  Generate
+                </Button>
+              </div>
+              {encryptionKey && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span>Password Strength</span>
+                    <span className={passwordStrength >= 80 ? 'text-green-400' : passwordStrength >= 60 ? 'text-yellow-400' : 'text-red-400'}>
+                      {passwordStrength >= 80 ? 'Military' : passwordStrength >= 60 ? 'Strong' : passwordStrength >= 40 ? 'Medium' : 'Weak'}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={passwordStrength} 
+                    className="h-2"
+                    style={{
+                      '--progress-background': passwordStrength >= 80 ? '#10b981' : passwordStrength >= 60 ? '#f59e0b' : '#ef4444'
+                    } as any}
+                  />
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-medium">Storage Usage</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span>Used: {(storageInfo.used / 1024 / 1024).toFixed(1)} MB</span>
+                  <span>Total: {(storageInfo.total / 1024 / 1024).toFixed(0)} MB</span>
+                </div>
+                <Progress value={(storageInfo.used / storageInfo.total) * 100} className="h-2" />
+                <div className="text-xs text-green-400">
+                  Compressed: {((storageInfo.compressed / storageInfo.used) * 100 || 0).toFixed(1)}% saved
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-medium">Security Level</span>
+              </div>
+              <div className="space-y-1">
+                <Badge variant="outline" className="border-green-500/50 text-green-400">
+                  {vaultEncryption.getEncryptionInfo().securityLevel}
+                </Badge>
+                <div className="text-xs text-gray-400">
+                  {vaultEncryption.getEncryptionInfo().iterations.toLocaleString()} iterations
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Upload Section */}
-      <Card className="bg-gray-800/50 border-gray-700">
+      {/* File Upload Section */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <Upload className="w-5 h-5 mr-2" />
-            Upload Files
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            Secure File Upload
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-4">
-            <Input
+        <CardContent>
+          <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500/50 transition-colors">
+            <input
               type="file"
+              multiple
               onChange={handleFileUpload}
-              disabled={isUploading}
-              className="flex-1"
+              className="hidden"
+              id="file-upload"
             />
-            <div className="flex items-center space-x-2">
-              <Lock className="w-4 h-4 text-gray-400" />
-              <Input
-                type="password"
-                placeholder="Encryption password (optional)"
-                value={encryptionKey}
-                onChange={(e) => setEncryptionKey(e.target.value)}
-                className="w-48"
-              />
+            <label htmlFor="file-upload" className="cursor-pointer">
+              <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-lg font-medium mb-2">Drop files here or click to upload</p>
+              <p className="text-sm text-gray-400">All files will be encrypted with military-grade security</p>
+            </label>
+            
+            {isUploading && (
+              <div className="mt-4 space-y-2">
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="text-sm text-blue-400">Encrypting and storing file...</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* File Management */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <HardDrive className="w-5 h-5" />
+              Encrypted Files ({filteredFiles.length})
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <Input
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <select 
+              value={filterType} 
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className="px-3 py-2 bg-background border border-border rounded-md"
+            >
+              <option value="all">All Files</option>
+              <option value="images">Images</option>
+              <option value="videos">Videos</option>
+              <option value="audio">Audio</option>
+              <option value="documents">Documents</option>
+            </select>
+          </div>
+
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-2'}>
+            {filteredFiles.map(file => (
+              <Card key={file.id} className="border-blue-500/30 bg-gradient-to-br from-blue-900/10 to-purple-900/10">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      {file.type.startsWith('image/') ? <Image className="w-4 h-4" /> :
+                       file.type.startsWith('video/') ? <Video className="w-4 h-4" /> :
+                       file.type.startsWith('audio/') ? <Music className="w-4 h-4" /> :
+                       <File className="w-4 h-4" />}
+                      <span className="text-sm font-medium truncate">{file.name}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {file.isEncrypted ? 'Encrypted' : 'Plain'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs text-gray-400">
+                    <div>Size: {(file.size / 1024).toFixed(1)} KB</div>
+                    <div>Security: {file.securityLevel || 'Basic'}</div>
+                    <div>Created: {file.createdAt.toLocaleDateString()}</div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mt-3">
+                    <Button
+                      onClick={() => handleFileDecrypt(file)}
+                      size="sm"
+                      variant="outline"
+                      className="border-green-500/50 hover:border-green-400"
+                    >
+                      <Download className="w-3 h-3 mr-1" />
+                      Decrypt
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const newFiles = files.filter(f => f.id !== file.id);
+                        saveFiles(newFiles);
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="border-red-500/50 hover:border-red-400"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
           
-          {isUploading && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Uploading...</span>
-                <span className="text-white">{Math.round(uploadProgress)}%</span>
-              </div>
-              <Progress value={uploadProgress} className="h-2" />
+          {filteredFiles.length === 0 && (
+            <div className="text-center py-12">
+              <HardDrive className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-lg font-medium mb-2">No files found</p>
+              <p className="text-sm text-gray-400">Upload some files to get started with secure storage</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between space-x-4">
-        <div className="flex items-center space-x-2">
-          <Search className="w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="Search files..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-64"
-          />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as any)}
-            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-          >
-            <option value="all">All Files</option>
-            <option value="images">Images</option>
-            <option value="videos">Videos</option>
-            <option value="audio">Audio</option>
-            <option value="documents">Documents</option>
-          </select>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowEncrypted(!showEncrypted)}
-            className={showEncrypted ? "text-green-400 border-green-400" : ""}
-          >
-            {showEncrypted ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          >
-            {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-          </Button>
-        </div>
-      </div>
-
-      {/* Files Display */}
-      <div className={viewMode === 'grid' ? 
-        "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : 
-        "space-y-2"
-      }>
-        {filteredFiles.map((file) => {
-          const FileIcon = getFileIcon(file.type);
-          
-          return (
-            <Card 
-              key={file.id}
-              className="bg-gray-800/50 border-gray-700 hover:bg-gray-700/50 transition-colors cursor-pointer"
-              onClick={() => setSelectedFile(file)}
-            >
-              <CardContent className={viewMode === 'grid' ? "p-4" : "p-3"}>
-                <div className={viewMode === 'grid' ? "space-y-3" : "flex items-center space-x-3"}>
-                  <div className="flex items-center space-x-2">
-                    <FileIcon className="w-5 h-5 text-blue-400" />
-                    {file.isEncrypted && <Lock className="w-3 h-3 text-yellow-400" />}
-                    {file.isStarred && <Star className="w-3 h-3 text-yellow-400 fill-current" />}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white truncate">{file.name}</h3>
-                    <p className="text-sm text-gray-400">
-                      {formatSize(file.size)} • {file.compressionRatio < 1 ? 
-                        `${Math.round((1 - file.compressionRatio) * 100)}% compressed` : 
-                        'No compression'
-                      }
-                    </p>
-                    {viewMode === 'list' && (
-                      <p className="text-xs text-gray-500">
-                        {file.createdAt.toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFileDownload(file);
-                      }}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {filteredFiles.length === 0 && (
-        <div className="text-center py-12">
-          <Archive className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-400 mb-2">No files found</h3>
-          <p className="text-gray-500">
-            {files.length === 0 ? 
-              "Upload your first file to get started" : 
-              "Try adjusting your search or filter criteria"
-            }
-          </p>
-        </div>
-      )}
-
-      {/* Decryption Password Input */}
-      {selectedFile?.isEncrypted && (
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-4">
-              <Key className="w-5 h-5 text-yellow-400" />
-              <Input
-                type="password"
-                placeholder="Enter decryption password"
-                value={encryptionKey}
-                onChange={(e) => setEncryptionKey(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={() => handleFileDownload(selectedFile)}
-                disabled={!encryptionKey}
-              >
-                Decrypt & Download
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

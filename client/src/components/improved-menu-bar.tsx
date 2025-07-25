@@ -33,7 +33,10 @@ import {
   Users,
   Network,
   Zap,
-  Radio
+  Radio,
+  Brain,
+  Lock,
+  Vault
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -140,6 +143,8 @@ export function ImprovedMenuBar({ currentUser, activeTab, onTabChange, onUserlog
   // Main navigation tabs - improved and organized
   const mainTabs = [
     { id: '3d-orbital', label: 'Stories', icon: Heart, description: 'Orbital Stories' },
+    { id: 'ai-clone', label: 'AI Clone', icon: Brain, description: 'AI Shadow Clone' },
+    { id: 'vault', label: 'Vault', icon: Lock, description: 'Secure Storage' },
     { id: 'messages', label: 'Chat', icon: MessageSquare, description: 'Real-time Messaging' },
     { id: 'users', label: 'Users', icon: Users, description: 'Connected Users' },
     { id: 'mesh', label: 'Radar', icon: Radio, description: 'Mesh Network Map' },
@@ -407,7 +412,7 @@ export function ImprovedMenuBar({ currentUser, activeTab, onTabChange, onUserlog
       {/* Mobile Navigation - Bottom Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-purple-900/80 via-blue-900/60 to-transparent backdrop-blur-lg border-t border-purple-500/20 z-50">
         <div className="flex items-center justify-around px-2 py-3">
-          {mainTabs.slice(0, 4).map((tab) => (
+          {mainTabs.slice(0, 5).map((tab) => (
             <Button
               key={tab.id}
               variant="ghost"
@@ -437,7 +442,7 @@ export function ImprovedMenuBar({ currentUser, activeTab, onTabChange, onUserlog
                 <SheetTitle>More Options</SheetTitle>
               </SheetHeader>
               <div className="grid grid-cols-2 gap-4 mt-6">
-                {mainTabs.slice(4).map((tab) => (
+                {mainTabs.slice(5).map((tab) => (
                   <Button
                     key={tab.id}
                     variant={activeTab === tab.id ? "default" : "outline"}

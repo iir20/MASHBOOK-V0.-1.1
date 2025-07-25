@@ -45,6 +45,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import type { User } from '@shared/schema';
+import { realConnectivityManager, type ConnectivityStats } from '@/lib/real-connectivity-manager';
 
 interface ConnectivityState {
   isOnline: boolean;
@@ -110,6 +111,7 @@ export function FixedConnectivitySystem({
   const [meshDiscovery, setMeshDiscovery] = useState(true);
   const [bluetoothScanning, setBluetoothScanning] = useState(false);
   const [diagnosticsRunning, setDiagnosticsRunning] = useState(false);
+  const [realConnectivityStats, setRealConnectivityStats] = useState<ConnectivityStats | null>(null);
 
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latencyTestRef = useRef<NodeJS.Timeout | null>(null);
@@ -122,20 +124,74 @@ export function FixedConnectivitySystem({
     select: () => true,
     retry: false,
     refetchInterval: 10000,
-    onError: () => {
-      setConnectivity(prev => ({ ...prev, apiConnected: false }));
-    },
-    onSuccess: () => {
-      setConnectivity(prev => ({ ...prev, apiConnected: true }));
-    }
   });
+
+  // Update connectivity based on API status
+  useEffect(() => {
+    setConnectivity(prev => ({ ...prev, apiConnected: !!apiStatus }));
+  }, [apiStatus]);
+
+  // Initialize real connectivity manager
+  useEffect(() => {
+    const updateStats = (stats: ConnectivityStats) => {
+      setRealConnectivityStats(stats);
+      
+      // Update connectivity state with real data
+      setConnectivity(prev => ({
+        ...prev,
+        bluetoothAvailable: stats.isBluetoothAvailable,
+        webrtcSupported: stats.isWebRTCAvailable,
+        connectionQuality: stats.connectionQuality,
+        signalStrength: stats.bluetoothDevices.length > 0 || stats.webRTCPeers.length > 0 ? 85 : 0,
+        latency: stats.networkLatency
+      }));
+
+      // Update nearby nodes with real devices
+      const nodes: NetworkNode[] = [
+        ...stats.bluetoothDevices.map(device => ({
+          id: device.id,
+          name: device.name,
+          type: 'mobile' as const,
+          distance: Math.floor(Math.random() * 100),
+          signalStrength: device.signalStrength,
+          connectionType: 'bluetooth' as const,
+          isConnected: device.connected,
+          lastSeen: device.lastSeen,
+          user: availableUsers.find(u => u.alias?.includes(device.name.substring(0, 3)))
+        })),
+        ...stats.webRTCPeers.map(peer => ({
+          id: peer.id,
+          name: `WebRTC-${peer.id.substring(0, 8)}`,
+          type: 'laptop' as const,
+          distance: Math.floor(Math.random() * 50),
+          signalStrength: peer.signalStrength,
+          connectionType: 'webrtc' as const,
+          isConnected: peer.status === 'connected',
+          lastSeen: peer.lastActivity,
+          user: availableUsers.find(u => u.id.toString() === peer.id.split('-')[1])
+        }))
+      ];
+      
+      setNearbyNodes(nodes);
+    };
+
+    realConnectivityManager.addListener(updateStats);
+    
+    // Get initial stats
+    const initialStats = realConnectivityManager.getStats();
+    updateStats(initialStats);
+
+    return () => {
+      realConnectivityManager.removeListener(updateStats);
+    };
+  }, [availableUsers]);
 
   // Check device capabilities
   useEffect(() => {
     const checkCapabilities = async () => {
       try {
         const bluetoothAvailable = 'bluetooth' in navigator;
-        const webrtcSupported = !!(window.RTCPeerConnection || window.webkitRTCPeerConnection);
+        const webrtcSupported = !!(window.RTCPeerConnection);
         
         setConnectivity(prev => ({
           ...prev,
