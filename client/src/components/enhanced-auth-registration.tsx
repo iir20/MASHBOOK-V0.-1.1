@@ -52,12 +52,15 @@ import { useToast } from '@/hooks/use-toast';
 import type { InsertUser } from '@shared/schema';
 
 interface AuthRegistrationProps {
-  onUserAuthenticated: (user: any) => void;
+  onAuthSuccess?: (user: any) => void;
+  onUserAuthenticated?: (user: any) => void;
   onLogout?: () => void;
   currentUser?: any;
 }
 
-export function EnhancedAuthRegistration({ onUserAuthenticated, currentUser }: AuthRegistrationProps) {
+export function EnhancedAuthRegistration({ onAuthSuccess, onUserAuthenticated, currentUser }: AuthRegistrationProps) {
+  const handleAuthSuccess = onAuthSuccess || onUserAuthenticated || (() => {});
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'register' | 'login' | 'about'>('about');
   const [formData, setFormData] = useState({
     alias: '',
@@ -74,8 +77,6 @@ export function EnhancedAuthRegistration({ onUserAuthenticated, currentUser }: A
     alias: '',
     deviceId: ''
   });
-
-  const { toast } = useToast();
 
   // Generate device fingerprint
   useEffect(() => {
@@ -148,7 +149,7 @@ export function EnhancedAuthRegistration({ onUserAuthenticated, currentUser }: A
     },
     onSuccess: (user) => {
       localStorage.setItem('meshbook-user', JSON.stringify(user));
-      onUserAuthenticated(user);
+      handleAuthSuccess(user);
       toast({
         title: "Welcome to Meshbook!",
         description: "Your account has been created successfully",
@@ -171,7 +172,7 @@ export function EnhancedAuthRegistration({ onUserAuthenticated, currentUser }: A
     },
     onSuccess: (user) => {
       localStorage.setItem('meshbook-user', JSON.stringify(user));
-      onUserAuthenticated(user);
+      handleAuthSuccess(user);
       toast({
         title: "Welcome back!",
         description: "Successfully logged in to Meshbook",

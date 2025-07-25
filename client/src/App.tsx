@@ -2,17 +2,42 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { EnhancedMainApp } from "./components/enhanced-main-app";
+import { EnhancedMainAppV2 } from "./components/enhanced-main-app-v2";
+import { MinimalMainApp } from "./components/minimal-main-app";
+import { DebugTest } from "./components/debug-test";
 
 function App() {
   console.log('App: Starting Meshbook application');
 
-  try {
+  // Check for debug mode
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDebugMode = urlParams.get('debug') === 'true';
+  const isMinimalMode = urlParams.get('minimal') === 'true';
+  
+  if (isDebugMode) {
+    return <DebugTest />;
+  }
+  
+  if (isMinimalMode) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
-          <EnhancedMainApp />
+          <MinimalMainApp />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  try {
+    console.log('App: Attempting to render main components');
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <div style={{ background: '#000', minHeight: '100vh', color: '#fff', padding: '20px' }}>
+            <h1>Meshbook Loading...</h1>
+            <EnhancedMainAppV2 />
+            <Toaster />
+          </div>
         </TooltipProvider>
       </QueryClientProvider>
     );
