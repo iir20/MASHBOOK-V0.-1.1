@@ -33,12 +33,12 @@ import {
 } from 'lucide-react';
 
 import { UnifiedSettingsSystem } from './unified-settings-system';
-import { EnhancedStorySystem } from './enhanced-story-system';
-import { EnhancedMessagingSystem } from './enhanced-messaging-system';
+import { EnhancedStorySystemV2 } from './enhanced-story-system-v2';
+import { EnhancedMessagingSystemV2 } from './enhanced-messaging-system-v2';
 import { EnhancedVaultSystem } from './enhanced-vault-system';
-import { EnhancedMeshMap } from './enhanced-mesh-map';
+import { EnhancedMeshMapV2 } from './enhanced-mesh-map-v2';
 import { EnhancedAuthShowcase } from './enhanced-auth-showcase';
-import { EnhancedNodeSystem } from './enhanced-node-system';
+import { EnhancedNodeSystemV2 } from './enhanced-node-system-v2';
 import { ThemeProvider, FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
 
 type UserType = User;
@@ -355,7 +355,7 @@ export function OptimizedMainApp() {
               </TabsList>
 
               <TabsContent value="stories">
-                <EnhancedStorySystem
+                <EnhancedStorySystemV2
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   isOffline={isOfflineMode}
@@ -363,7 +363,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="messages">
-                <EnhancedMessagingSystem
+                <EnhancedMessagingSystemV2
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   selectedUser={selectedUser}
@@ -383,7 +383,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="mesh">
-                <EnhancedMeshMap
+                <EnhancedMeshMapV2
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   onUserSelect={setSelectedUser}
@@ -393,7 +393,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="node">
-                <EnhancedNodeSystem
+                <EnhancedNodeSystemV2
                   currentUser={currentUser}
                   isOffline={isOfflineMode}
                 />
