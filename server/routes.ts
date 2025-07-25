@@ -28,8 +28,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     path: '/ws',
     perMessageDeflate: false,
     clientTracking: true,
+    handleProtocols: (protocols, request) => {
+      console.log(`WebSocket connection protocols:`, protocols);
+      return protocols[0] || false;
+    },
     verifyClient: (info: any) => {
       console.log(`WebSocket connection attempt from ${info.origin || 'unknown origin'}`);
+      console.log(`WebSocket request URL:`, info.req.url);
       return true; // Allow all connections for now
     }
   });
@@ -94,15 +99,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.patch("/api/users/:id", async (req, res) => {
     try {
+      console.log('User update request:', req.params.id);
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
       const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+      
       const updates = updateUserSchema.parse(req.body);
+      console.log('Parsed updates:', updates);
+      
       const updatedUser = await storage.updateUser(userId, updates);
       if (!updatedUser) {
         return res.status(404).json({ error: "User not found" });
       }
+      
+      console.log('Updated user:', updatedUser);
       res.json(updatedUser);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid update data" });
+    } catch (error: any) {
+      console.error("User update error:", error);
+      res.status(400).json({ 
+        error: "Invalid update data",
+        details: error.message || error.toString()
+      });
     }
   });
   

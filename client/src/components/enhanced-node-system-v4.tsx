@@ -387,7 +387,7 @@ export function EnhancedNodeSystemV4({ currentUser, isOffline, wsState }: Enhanc
             </Badge>
             <GlowButton
               onClick={toggleNode}
-              variant={nodeStats.isRunning ? "destructive" : "default"}
+              variant={nodeStats.isRunning ? "destructive" : "secondary"}
               className="gap-2"
             >
               {nodeStats.isRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -672,7 +672,7 @@ export function EnhancedNodeSystemV4({ currentUser, isOffline, wsState }: Enhanc
                   </div>
                   <Switch
                     id={key}
-                    checked={value}
+                    checked={typeof value === 'boolean' ? value : false}
                     onCheckedChange={(checked) => 
                       setNodeSettings(prev => ({ ...prev, [key]: checked }))
                     }

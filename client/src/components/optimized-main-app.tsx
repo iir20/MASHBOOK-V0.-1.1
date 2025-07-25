@@ -34,14 +34,15 @@ import {
 
 import { UnifiedSettingsSystem } from './unified-settings-system';
 import { EnhancedStorySystemV4 } from './enhanced-story-system-v4';
-import { EnhancedMessagingSystemV2 } from './enhanced-messaging-system-v2';
+// import { EnhancedMessagingSystemV2 } from './enhanced-messaging-system-v2'; // Temporarily disabled
 import { EnhancedP2PMessaging } from './enhanced-p2p-messaging';
 import { EnhancedVaultSystemV2 } from './enhanced-vault-system-v2';
 import { EnhancedMeshMapV3 } from './enhanced-mesh-map-v3';
 import { EnhancedAuthShowcase } from './enhanced-auth-showcase';
 import { EnhancedNodeSystemV4 } from './enhanced-node-system-v4';
 import { EnhancedProfileEditor } from './enhanced-profile-editor';
-import { ThemeProvider, FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
+import { EnhancedConnectivitySyncManager } from './enhanced-connectivity-sync-manager';
+import { AnimatedBackground, ThemeProvider, NeonText } from "./modern-futuristic-theme";
 
 type UserType = User;
 
@@ -77,18 +78,39 @@ export function OptimizedMainApp() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load user from localStorage on mount
+  // Load user from localStorage on mount with fallback to default user
   useEffect(() => {
     const savedUser = localStorage.getItem('meshbook-user');
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser);
         setCurrentUser(user);
+        return;
       } catch (error) {
         console.error('Failed to load saved user:', error);
         localStorage.removeItem('meshbook-user');
       }
     }
+    
+    // Fallback: fetch the first available user for testing
+    console.log('No saved user found, fetching available users...');
+    fetch('/api/users')
+      .then(res => {
+        console.log('API response status:', res.status);
+        return res.json();
+      })
+      .then(users => {
+        console.log('Available users:', users);
+        if (users && users.length > 0) {
+          const firstUser = users[0];
+          console.log('Setting first user as current:', firstUser);
+          setCurrentUser(firstUser);
+          localStorage.setItem('meshbook-user', JSON.stringify(firstUser));
+        }
+      })
+      .catch(error => {
+        console.error('Failed to fetch fallback user:', error);
+      });
   }, []);
 
   // Fetch available users with optimized caching
@@ -111,7 +133,12 @@ export function OptimizedMainApp() {
 
     const connect = () => {
       try {
-        const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?userId=${encodeURIComponent(currentUser.id.toString())}`;
+        // Use proper WebSocket URL construction for different environments
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        const wsUrl = `${wsProtocol}//${wsHost}/ws?userId=${encodeURIComponent(currentUser.id.toString())}`;
+        
+        console.log('Attempting WebSocket connection to:', wsUrl);
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -252,16 +279,18 @@ export function OptimizedMainApp() {
   // Filter real users (exclude current user)
   const realAvailableUsers = availableUsers.filter(user => user.id !== currentUser?.id);
 
+  // Show loading screen while fetching user
   if (!currentUser) {
     return (
       <ThemeProvider>
-        <EnhancedAuthShowcase
-          onAuthSuccess={(user: UserType) => {
-            setCurrentUser(user);
-            // Invalidate users query to refresh the list  
-            queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-          }}
-        />
+        <AnimatedBackground>
+          <div className="fixed inset-0 flex items-center justify-center bg-background">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+              <p className="text-cyan-400 text-lg">Connecting to Meshbook...</p>
+            </div>
+          </div>
+        </AnimatedBackground>
       </ThemeProvider>
     );
   }
@@ -591,11 +620,22 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="settings">
-                <UnifiedSettingsSystem
-                  currentUser={currentUser}
-                  onUserUpdate={handleUserUpdate}
-                  isOffline={isOfflineMode}
-                />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <UnifiedSettingsSystem
+                      currentUser={currentUser}
+                      onUserUpdate={handleUserUpdate}
+                      isOffline={isOfflineMode}
+                    />
+                  </div>
+                  <div>
+                    <EnhancedConnectivitySyncManager
+                      currentUser={currentUser}
+                      onConnectivityChange={(isOnline) => setIsOfflineMode(!isOnline)}
+                      onSyncStatusChange={(status) => console.log('Sync status:', status)}
+                    />
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </main>

@@ -289,7 +289,14 @@ export function EnhancedP2PMessaging({
 
       return await apiRequest(`/api/messages`, {
         method: 'POST',
-        body: formData
+        body: {
+          fromUserId: messageData.fromUserId,
+          toUserId: messageData.toUserId,
+          content: messageData.content,
+          encryptedContent: encryptedContent,
+          messageType: messageData.messageType || 'text',
+          isEphemeral: messageData.isEphemeral || true
+        }
       });
     },
     onSuccess: (data, variables) => {

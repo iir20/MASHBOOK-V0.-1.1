@@ -177,7 +177,10 @@ export function UnifiedSettingsSystem({ currentUser, onUserUpdate, isOffline }: 
   const updateUserMutation = useMutation({
     mutationFn: async (userData: Partial<User>) => {
       if (!currentUser?.id) throw new Error('No user ID');
-      return apiRequest(`/api/users/${currentUser.id}`, 'PATCH', userData);
+      return apiRequest(`/api/users/${currentUser.id}`, {
+        method: 'PATCH',
+        body: userData,
+      });
     },
     onSuccess: (updatedUser) => {
       onUserUpdate(updatedUser);
@@ -227,6 +230,10 @@ export function UnifiedSettingsSystem({ currentUser, onUserUpdate, isOffline }: 
     saveSettings(settings);
     
     if (currentUser && Object.keys(editedUser).length > 0) {
+      // Add to pending operations if offline
+      if ((window as any).addPendingOperation) {
+        (window as any).addPendingOperation('profile', 'update', editedUser);
+      }
       updateUserMutation.mutate(editedUser);
     }
   };

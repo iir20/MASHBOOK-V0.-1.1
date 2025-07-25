@@ -4,11 +4,27 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OptimizedMainApp } from "./components/optimized-main-app";
 import { DebugApp } from "./components/debug-app";
+import { SimpleTestApp } from "./components/simple-test-app";
 
 function App() {
-  // Main MeshBook application - debug mode removed
+  // Check if we should use the simple test app
+  const urlParams = new URLSearchParams(window.location.search);
+  const useSimpleApp = urlParams.get('simple') === 'true';
+
+  console.log('App: Starting with useSimpleApp:', useSimpleApp);
 
   try {
+    if (useSimpleApp) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <SimpleTestApp />
+          </TooltipProvider>
+        </QueryClientProvider>
+      );
+    }
+
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>

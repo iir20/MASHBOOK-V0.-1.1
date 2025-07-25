@@ -65,7 +65,7 @@ export function EnhancedProfileEditor({ currentUser, onUserUpdate, onClose, isOf
 
         const response = await apiRequest(`/api/users/${currentUser.id}`, {
           method: 'PATCH',
-          body: JSON.stringify(finalData),
+          body: finalData,
         });
 
         setUploadProgress(100);
@@ -85,6 +85,9 @@ export function EnhancedProfileEditor({ currentUser, onUserUpdate, onClose, isOf
       
       onUserUpdate(updatedUser);
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      
+      // Update localStorage immediately
+      localStorage.setItem('meshbook-user', JSON.stringify(updatedUser));
       onClose();
     },
     onError: (error: any) => {
