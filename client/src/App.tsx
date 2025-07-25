@@ -6,12 +6,7 @@ import { OptimizedMainApp } from "./components/optimized-main-app";
 import { DebugApp } from "./components/debug-app";
 
 function App() {
-  // Enable debug mode by checking if there are any errors
-  const isDebugMode = window.location.search.includes('debug=true');
-
-  if (isDebugMode) {
-    return <DebugApp />;
-  }
+  // Main MeshBook application - debug mode removed
 
   try {
     return (
