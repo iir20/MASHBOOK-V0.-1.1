@@ -111,7 +111,7 @@ export function OptimizedMainApp() {
 
     const connect = () => {
       try {
-        const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+        const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?userId=${encodeURIComponent(currentUser.id.toString())}`;
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
