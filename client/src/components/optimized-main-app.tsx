@@ -34,6 +34,7 @@ import {
 
 import { UnifiedSettingsSystem } from './unified-settings-system';
 import { EnhancedStorySystemV2 } from './enhanced-story-system-v2';
+import { EnhancedStorySystemV3 } from './enhanced-story-system-v3';
 import { EnhancedMessagingSystemV2 } from './enhanced-messaging-system-v2';
 import { EnhancedP2PMessaging } from './enhanced-p2p-messaging';
 import { EnhancedVaultSystem } from './enhanced-vault-system';
@@ -442,7 +443,7 @@ export function OptimizedMainApp() {
               </div>
 
               <TabsContent value="stories">
-                <EnhancedStorySystemV2
+                <EnhancedStorySystemV3
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   isOffline={isOfflineMode}

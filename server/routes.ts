@@ -171,20 +171,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/stories", async (req, res) => {
     try {
       console.log('Story creation request:', JSON.stringify(req.body, null, 2));
+      console.log("Request headers:", req.headers);
       
-      // Convert string dates to Date objects
-      if (req.body.expiresAt && typeof req.body.expiresAt === 'string') {
-        req.body.expiresAt = new Date(req.body.expiresAt);
+      // Handle form data from enhanced story system
+      let storyData: any = {};
+      
+      if (req.body.title !== undefined) storyData.title = req.body.title;
+      if (req.body.content !== undefined) storyData.content = req.body.content;
+      if (req.body.userId !== undefined) storyData.userId = parseInt(req.body.userId);
+      if (req.body.expiresAt !== undefined) {
+        storyData.expiresAt = typeof req.body.expiresAt === 'string' 
+          ? new Date(req.body.expiresAt) 
+          : req.body.expiresAt;
+      }
+      if (req.body.mediaUrl !== undefined) storyData.mediaUrl = req.body.mediaUrl;
+      
+      console.log("Processed story data:", storyData);
+      
+      // Validate required fields
+      if (!storyData.content || !storyData.userId || !storyData.expiresAt) {
+        return res.status(400).json({ 
+          error: "Missing required fields",
+          message: "Content, userId, and expiresAt are required",
+          received: storyData
+        });
       }
       
-      const storyData = insertStorySchema.parse(req.body);
-      const story = await storage.createStory(storyData);
+      // Set defaults
+      if (!storyData.title) storyData.title = '';
+      if (!storyData.mediaUrl) storyData.mediaUrl = '';
+      
+      console.log("Final story data before validation:", storyData);
+      
+      const validatedData = insertStorySchema.parse(storyData);
+      console.log("Validated story data:", validatedData);
+      
+      const story = await storage.createStory(validatedData);
+      console.log("Created story:", story);
+      
       res.json(story);
     } catch (error: any) {
       console.error("Story creation error:", error);
-      res.status(400).json({ 
-        error: "Invalid story data",
-        details: error.message || error.toString()
+      console.error("Error stack:", error.stack);
+      
+      let errorMessage = "Failed to create story";
+      let statusCode = 500;
+      
+      if (error.name === 'ZodError') {
+        statusCode = 400;
+        errorMessage = "Invalid story data: " + error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+        statusCode = 400;
+      }
+      
+      res.status(statusCode).json({ 
+        error: errorMessage,
+        details: error.toString(),
+        received: req.body
       });
     }
   });
