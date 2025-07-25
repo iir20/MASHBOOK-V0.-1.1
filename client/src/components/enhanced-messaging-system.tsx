@@ -29,7 +29,7 @@ import {
   Clock,
   ArrowLeft,
   X,
-  FileMessage,
+  FileText,
   Eye
 } from 'lucide-react';
 
@@ -489,7 +489,7 @@ export function EnhancedMessagingSystem({
                   >
                     {message.messageType === 'file' ? (
                       <div className="flex items-center space-x-2">
-                        <FileMessage className="h-4 w-4" />
+                        <FileText className="h-4 w-4" />
                         <span className="text-sm">File attachment</span>
                       </div>
                     ) : (
