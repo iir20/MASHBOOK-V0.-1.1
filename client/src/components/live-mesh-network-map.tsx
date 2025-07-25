@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Radio, 
@@ -28,7 +31,10 @@ import {
   HardDrive,
   Gauge,
   Play,
-  Pause
+  Pause,
+  Radar,
+  Target,
+  Waves
 } from 'lucide-react';
 import type { User } from '@shared/schema';
 
@@ -73,6 +79,14 @@ export function LiveMeshNetworkMap({
 }: LiveMeshNetworkMapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
+  
+  // Radar scanning states
+  const [isScanning, setIsScanning] = useState(true);
+  const [radarAngle, setRadarAngle] = useState(0);
+  const [detectedNodes, setDetectedNodes] = useState<Set<string>>(new Set());
+  const [scanRadius, setScanRadius] = useState(200);
+  const [scanSpeed, setScanSpeed] = useState(2);
+  const [radarMode, setRadarMode] = useState<'sweep' | 'pulse' | 'continuous'>('sweep');
   const [meshNodes, setMeshNodes] = useState<LiveMeshNode[]>([]);
   const [connections, setConnections] = useState<NetworkConnection[]>([]);
   const [selectedNode, setSelectedNode] = useState<LiveMeshNode | null>(null);

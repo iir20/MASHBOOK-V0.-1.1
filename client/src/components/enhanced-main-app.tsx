@@ -23,7 +23,9 @@ import {
   Orbit,
   Brain,
   Wallet,
-  Globe
+  Globe,
+  AtomIcon,
+  Radio
 } from 'lucide-react';
 
 import { EnhancedStorySystem } from './enhanced-story-system';
@@ -31,12 +33,14 @@ import { Futuristic3DOrbitalStorySystem } from './futuristic-3d-orbital-story-sy
 import { AIShadowCloneSystem } from './ai-shadow-clone-system';
 import { Web3BlockchainIntegration } from './web3-blockchain-integration';
 import { ARWorldDropSystem } from './ar-world-drop-system';
+import { QuantumMeshRoutingSystem } from './quantum-mesh-routing-system';
+import { NeuralNetworkVisualization } from './neural-network-visualization';
 import { EnhancedRealTimeMessaging } from './enhanced-real-time-messaging';
 import { EnhancedConnectivitySystem } from './enhanced-connectivity-system';
 import { EnhancedAuthRegistration } from './enhanced-auth-registration';
 import { FacebookMenuBar } from './facebook-menu-bar';
 import { CompleteUserProfile } from './complete-user-profile';
-import { LiveMeshNetworkMap } from './live-mesh-network-map';
+import { EnhancedRadarMeshMap } from './enhanced-radar-mesh-map';
 import { EnhancedProfileEditor } from './enhanced-profile-editor';
 import { EnhancedSettingsPanel } from './enhanced-settings-panel';
 
@@ -51,7 +55,7 @@ interface WSState {
 
 export function EnhancedMainApp() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [activeTab, setActiveTab] = useState<'stories' | '3d-orbital' | 'ai-clone' | 'web3' | 'ar-world' | 'messages' | 'users' | 'network' | 'mesh' | 'profile' | 'settings'>('3d-orbital');
+  const [activeTab, setActiveTab] = useState<'stories' | '3d-orbital' | 'ai-clone' | 'web3' | 'ar-world' | 'messages' | 'users' | 'network' | 'mesh' | 'quantum' | 'neural' | 'node' | 'profile' | 'settings'>('3d-orbital');
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -327,6 +331,18 @@ export function EnhancedMainApp() {
                 <Network className="w-4 h-4" />
                 <span className="hidden sm:inline">Mesh</span>
               </TabsTrigger>
+              <TabsTrigger value="quantum" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600">
+                <AtomIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Quantum</span>
+              </TabsTrigger>
+              <TabsTrigger value="neural" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600">
+                <Brain className="w-4 h-4" />
+                <span className="hidden sm:inline">Neural AI</span>
+              </TabsTrigger>
+              <TabsTrigger value="node" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-blue-600">
+                <Radio className="w-4 h-4" />
+                <span className="hidden sm:inline">Node</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -440,11 +456,35 @@ export function EnhancedMainApp() {
             </TabsContent>
 
             <TabsContent value="mesh" className="h-full m-0">
-              <LiveMeshNetworkMap
+              <EnhancedRadarMeshMap
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
                 onUserSelect={handleViewProfile}
                 isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            <TabsContent value="quantum" className="h-full m-0">
+              <QuantumMeshRoutingSystem
+                currentUser={currentUser}
+                availableUsers={filteredUsers}
+                isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            <TabsContent value="neural" className="h-full m-0">
+              <NeuralNetworkVisualization
+                currentUser={currentUser}
+                isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            <TabsContent value="node" className="h-full m-0">
+              <EnhancedConnectivitySystem
+                currentUser={currentUser}
+                availableUsers={filteredUsers}
+                wsState={wsState}
+                onOfflineMode={handleOfflineMode}
               />
             </TabsContent>
 

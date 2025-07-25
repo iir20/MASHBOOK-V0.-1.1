@@ -250,7 +250,8 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
   // Filter active stories (not expired)
   const activeStories = stories.filter(story => {
     const now = new Date();
-    return story.expiresAt > now;
+    const expiresAt = new Date(story.expiresAt);
+    return expiresAt > now;
   });
 
   // Group stories by user
@@ -260,7 +261,7 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
       user,
       stories: userStories,
       hasStories: userStories.length > 0,
-      latestStory: userStories.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+      latestStory: userStories.length > 0 ? userStories.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null
     };
   }).filter(group => group.hasStories);
 
@@ -284,7 +285,7 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
                 <div>
                   <p className="font-medium text-white">{selectedStory.user?.alias}</p>
                   <p className="text-sm text-gray-300">
-                    {Math.round((Date.now() - selectedStory.createdAt.getTime()) / (1000 * 60 * 60))}h ago
+                    {Math.round((Date.now() - new Date(selectedStory.createdAt).getTime()) / (1000 * 60 * 60))}h ago
                   </p>
                 </div>
               </div>
@@ -463,7 +464,7 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
         {storyGroups.map((group) => (
           <div key={group.user.id} className="flex-shrink-0">
             <div
-              onClick={() => handleStoryView(group.latestStory, 0)}
+              onClick={() => group.latestStory && handleStoryView(group.latestStory, 0)}
               className="relative w-16 h-16 rounded-full border-3 border-gradient-to-r from-purple-500 to-cyan-500 p-0.5 cursor-pointer transition-all duration-300 hover:scale-105"
             >
               <Avatar className="w-full h-full">
@@ -533,7 +534,7 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
               {/* Time indicator */}
               <div className="absolute top-2 right-2">
                 <Badge variant="secondary" className="bg-black/50 text-white text-xs">
-                  {Math.round((Date.now() - story.createdAt.getTime()) / (1000 * 60 * 60))}h
+                  {Math.round((Date.now() - new Date(story.createdAt).getTime()) / (1000 * 60 * 60))}h
                 </Badge>
               </div>
             </div>
@@ -625,47 +626,64 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
                     <Button
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 h-20"
+                      className="h-20 flex flex-col items-center justify-center"
                     >
-                      <Camera className="h-4 w-4" />
-                      Photo
+                      <Camera className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Photo</span>
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 h-20"
+                      className="h-20 flex flex-col items-center justify-center"
                     >
-                      <Video className="h-4 w-4" />
-                      Video
+                      <Video className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Video</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex items-center gap-2 h-20"
                       disabled
+                      className="h-20 flex flex-col items-center justify-center opacity-50"
                     >
-                      <FileText className="h-4 w-4" />
-                      Text Only
+                      <FileText className="h-6 w-6 mb-1" />
+                      <span className="text-xs">Text Only</span>
                     </Button>
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <GlowButton
-                  onClick={handleCreateStory}
-                  disabled={createStoryMutation.isPending || !newStoryTitle.trim() || !newStoryContent.trim()}
-                  className="flex-1 flex items-center gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  {createStoryMutation.isPending ? 'Creating...' : 'Share Story'}
-                </GlowButton>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateStory(false)}
-                  className="px-6"
-                >
-                  Cancel
-                </Button>
+              <div className="flex items-center justify-between pt-4">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>Expires in 24 hours</span>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={() => {
+                    setShowCreateStory(false);
+                    setSelectedFile(null);
+                    setMediaPreview(null);
+                    setNewStoryTitle('');
+                    setNewStoryContent('');
+                  }}>
+                    Cancel
+                  </Button>
+                  <GlowButton 
+                    onClick={handleCreateStory}
+                    disabled={createStoryMutation.isPending || !newStoryTitle.trim() || !newStoryContent.trim()}
+                  >
+                    {createStoryMutation.isPending ? (
+                      <>
+                        <Upload className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Share Story
+                      </>
+                    )}
+                  </GlowButton>
+                </div>
               </div>
             </CardContent>
           </FuturisticCard>
