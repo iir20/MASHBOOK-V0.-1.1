@@ -27,6 +27,9 @@ jobs:
     - name: Install grunt locally
       run: npm install grunt --save-dev
 
+    - name: List files before grunt run
+      run: ls -la
+
     - name: Run grunt build
       run: grunt --gruntfile gruntfile.cjs
 
