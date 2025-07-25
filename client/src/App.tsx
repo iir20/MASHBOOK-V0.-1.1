@@ -3,28 +3,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OptimizedMainApp } from "./components/optimized-main-app";
-import { DebugApp } from "./components/debug-app";
-import { SimpleTestApp } from "./components/simple-test-app";
 
 function App() {
-  // Check if we should use the simple test app
-  const urlParams = new URLSearchParams(window.location.search);
-  const useSimpleApp = urlParams.get('simple') === 'true';
-
-  console.log('App: Starting with useSimpleApp:', useSimpleApp);
+  console.log('App: Starting Meshbook application');
 
   try {
-    if (useSimpleApp) {
-      return (
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Toaster />
-            <SimpleTestApp />
-          </TooltipProvider>
-        </QueryClientProvider>
-      );
-    }
-
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
