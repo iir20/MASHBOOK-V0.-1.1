@@ -1,8 +1,16 @@
-"scripts": {
-  ...
-  "build:grunt": "grunt --gruntfile gruntfile.cjs"
+{
+  "name": "mashbook",
+  "version": "1.0.0",
+  "description": "MeshNet Messenger",
+  "main": "index.js",
+  "scripts": {
+    "build:grunt": "grunt --gruntfile gruntfile.cjs"
+  },
+  "devDependencies": {
+    "grunt": "^1.6.1",
+    "grunt-contrib-copy": "^1.0.0"
+  }
 }
-
 {
   "name": "rest-express",
   "version": "1.0.0",
