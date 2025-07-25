@@ -1,610 +1,687 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { 
+import type { User, InsertStory } from '@shared/schema';
+import { FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
+
+import {
+  Sparkles,
   Plus,
-  Image,
-  Video,
   Clock,
   Eye,
-  Heart,
-  Share,
-  MessageSquare,
-  X,
   Camera,
+  Video,
+  FileText,
+  Upload,
   Send,
-  User,
-  MoreVertical,
+  X,
+  Heart,
+  MessageCircle,
+  Share,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
-  Upload,
-  Play,
-  Pause
+  MoreHorizontal
 } from 'lucide-react';
-import type { User as UserType, Story, InsertStory } from '@shared/schema';
 
-interface EnhancedStory extends Story {
-  user?: UserType;
+interface Story {
+  id: number;
+  userId: number;
+  title: string;
+  content: string;
+  mediaUrl: string | null;
+  mediaType: string | null;
+  expiresAt: Date;
+  createdAt: Date;
+  user?: User;
   views?: number;
   likes?: number;
   isLiked?: boolean;
-  timeRemaining?: string;
-  timeAgo?: string;
-  progress?: number;
 }
 
 interface EnhancedStorySystemProps {
-  currentUser: UserType;
-  availableUsers: UserType[];
-  onMessageUser: (user: UserType) => void;
-  onUserProfile: (user: UserType) => void;
-  isOffline?: boolean;
+  currentUser: User | null;
+  availableUsers: User[];
+  isOffline: boolean;
 }
 
-export function EnhancedStorySystem({ 
-  currentUser, 
-  availableUsers, 
-  onMessageUser,
-  onUserProfile,
-  isOffline = false
-}: EnhancedStorySystemProps) {
-  const [enhancedStories, setEnhancedStories] = useState<EnhancedStory[]>([]);
-  const [selectedStory, setSelectedStory] = useState<EnhancedStory | null>(null);
-  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
-  const [storyProgress, setStoryProgress] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const [viewersMap, setViewersMap] = useState<Record<number, number>>({});
+export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: EnhancedStorySystemProps) {
+  const [showCreateStory, setShowCreateStory] = useState(false);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [newStoryContent, setNewStoryContent] = useState('');
+  const [newStoryTitle, setNewStoryTitle] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [storyIndex, setStoryIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   
-  const [newStory, setNewStory] = useState({
-    title: '',
-    content: '',
-    mediaUrl: null as string | null,
-    duration: 24
-  });
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const storyIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Real-time story fetching with aggressive refresh
-  const { data: dbStories = [], isLoading, refetch } = useQuery<Story[]>({
+  // Fetch stories with real-time updates
+  const { data: stories = [], refetch: refetchStories } = useQuery<Story[]>({
     queryKey: ['/api/stories'],
-    enabled: !!currentUser,
-    refetchInterval: 2000, // Every 2 seconds for real-time updates
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    staleTime: 0, // Always consider data stale
-    gcTime: 0 // Don't cache
+    enabled: !isOffline,
+    refetchInterval: 5000, // Real-time updates every 5 seconds
+    staleTime: 2000,
+    select: (data) => data.map(story => ({
+      ...story,
+      expiresAt: new Date(story.expiresAt),
+      createdAt: new Date(story.createdAt)
+    }))
   });
 
-  // User stories for profile
-  const { data: userStories = [], refetch: refetchUserStories } = useQuery<Story[]>({
-    queryKey: ['/api/stories/user', currentUser.id],
-    enabled: !!currentUser.id,
-    refetchInterval: 2000,
-    refetchOnWindowFocus: true,
-    staleTime: 0
-  });
-
-  // Enhanced story creation mutation
+  // Create story mutation with proper error handling
   const createStoryMutation = useMutation({
     mutationFn: async (storyData: InsertStory) => {
-      const response = await apiRequest('/api/stories', {
+      const formData = new FormData();
+      formData.append('title', storyData.title);
+      formData.append('content', storyData.content);
+      formData.append('userId', String(storyData.userId));
+      formData.append('expiresAt', storyData.expiresAt.toISOString());
+      
+      if (selectedFile) {
+        formData.append('media', selectedFile);
+      }
+
+      const response = await fetch('/api/stories', {
         method: 'POST',
-        body: storyData
+        body: formData,
       });
-      return response;
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create story');
+      }
+
+      return response.json();
     },
-    onSuccess: (newStory) => {
-      // Immediately update local state
-      const enhancedStory: EnhancedStory = {
-        ...newStory,
-        user: currentUser,
-        timeAgo: 'Just now',
-        views: 0,
-        likes: 0
-      };
-      setEnhancedStories(prev => [enhancedStory, ...prev]);
+    onSuccess: () => {
+      toast({
+        title: "Story Created",
+        description: "Your story has been shared successfully!",
+      });
       
-      // Force refresh all story queries
+      setShowCreateStory(false);
+      setNewStoryContent('');
+      setNewStoryTitle('');
+      setSelectedFile(null);
+      setMediaPreview(null);
+      
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
-      queryClient.refetchQueries({ queryKey: ['/api/stories'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/stories/user'] });
-      
-      setIsCreating(false);
-      setNewStory({ title: '', content: '', mediaUrl: null, duration: 24 });
-      
+    },
+    onError: (error) => {
+      console.error('Failed to create story:', error);
       toast({
-        title: "Story Published!",
-        description: "Your story is now live and visible to the network",
+        title: "Story Creation Failed",
+        description: error.message || "Failed to create your story. Please try again.",
+        variant: "destructive",
       });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Story Upload Failed",
-        description: error.message || "Failed to create story. Please try again.",
-        variant: "destructive"
-      });
-    }
   });
 
-  // Enhanced stories processing with user data
-  useEffect(() => {
-    if (!dbStories.length) return;
+  // Handle file selection and preview
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const processedStories: EnhancedStory[] = dbStories.map(story => {
-      const storyUser = availableUsers.find(u => u.id === story.userId) || currentUser;
-      const now = new Date();
-      const createdAt = new Date(story.createdAt);
-      const expiresAt = new Date(story.expiresAt);
-      
-      const timeElapsed = now.getTime() - createdAt.getTime();
-      const totalTime = expiresAt.getTime() - createdAt.getTime();
-      const progress = Math.max(0, Math.min(100, (timeElapsed / totalTime) * 100));
-      
-      const timeAgo = getTimeAgo(createdAt);
-      const timeRemaining = getTimeRemaining(expiresAt);
-      
-      return {
-        ...story,
-        user: storyUser,
-        timeAgo,
-        timeRemaining,
-        progress,
-        views: viewersMap[story.id] || Math.floor(Math.random() * 10) + 1,
-        likes: Math.floor(Math.random() * 5),
-        isLiked: false
-      };
-    });
-
-    // Sort by creation time, newest first
-    processedStories.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    setEnhancedStories(processedStories);
-  }, [dbStories, availableUsers, currentUser, viewersMap]);
-
-  // Auto-refresh mechanism
-  useEffect(() => {
-    if (isOffline) return;
-
-    const interval = setInterval(() => {
-      refetch();
-      refetchUserStories();
-    }, 3000); // Refresh every 3 seconds
-
-    return () => clearInterval(interval);
-  }, [isOffline, refetch, refetchUserStories]);
-
-  // Story viewing progress
-  useEffect(() => {
-    if (!selectedStory || !autoPlay) return;
-
-    const interval = setInterval(() => {
-      setStoryProgress(prev => {
-        if (prev >= 100) {
-          handleNextStory();
-          return 0;
-        }
-        return prev + 2; // 50 steps = 5 seconds per story
-      });
-    }, 100);
-
-    progressIntervalRef.current = interval;
-    return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-    };
-  }, [selectedStory, autoPlay]);
-
-  const getTimeAgo = (date: Date): string => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
-
-  const getTimeRemaining = (expiresAt: Date): string => {
-    const now = new Date();
-    const diff = expiresAt.getTime() - now.getTime();
-    const hours = Math.floor(diff / 3600000);
-    
-    if (diff <= 0) return 'Expired';
-    if (hours < 1) return `${Math.floor(diff / 60000)}m left`;
-    return `${hours}h left`;
-  };
-
-  const handleCreateStory = async () => {
-    if (!newStory.title.trim() || !newStory.content.trim()) {
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
       toast({
-        title: "Missing Content",
-        description: "Please add both a title and content for your story",
-        variant: "destructive"
+        title: "File Too Large",
+        description: "Please select a file smaller than 10MB.",
+        variant: "destructive",
       });
       return;
     }
 
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + newStory.duration);
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select an image (JPEG, PNG, GIF) or video (MP4, WebM).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setMediaPreview(previewUrl);
+  };
+
+  const handleCreateStory = () => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to create stories.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newStoryTitle.trim() || !newStoryContent.trim()) {
+      toast({
+        title: "Missing Content",
+        description: "Please provide both title and content for your story.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const storyData: InsertStory = {
+      title: newStoryTitle.trim(),
+      content: newStoryContent.trim(),
       userId: currentUser.id,
-      title: newStory.title.trim(),
-      content: newStory.content.trim(),
-      mediaUrl: newStory.mediaUrl,
-      expiresAt
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     };
 
     createStoryMutation.mutate(storyData);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        toast({
-          title: "File Too Large",
-          description: "Please select an image smaller than 10MB",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setNewStory(prev => ({ ...prev, mediaUrl: e.target?.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleStoryClick = (story: EnhancedStory, index: number) => {
+  const handleStoryView = (story: Story, index: number) => {
     setSelectedStory(story);
-    setCurrentStoryIndex(index);
-    setStoryProgress(0);
-    setViewersMap(prev => ({
-      ...prev,
-      [story.id]: (prev[story.id] || 0) + 1
-    }));
-  };
-
-  const handleNextStory = () => {
-    if (currentStoryIndex < enhancedStories.length - 1) {
-      const nextIndex = currentStoryIndex + 1;
-      setSelectedStory(enhancedStories[nextIndex]);
-      setCurrentStoryIndex(nextIndex);
-      setStoryProgress(0);
-    } else {
-      setSelectedStory(null);
-      setStoryProgress(0);
+    setStoryIndex(index);
+    
+    // Mark story as viewed (if implemented in backend)
+    if (story.userId !== currentUser?.id) {
+      // Increment view count
+      apiRequest(`/api/stories/${story.id}/view`, 'POST').catch(console.error);
     }
   };
 
-  const handlePrevStory = () => {
-    if (currentStoryIndex > 0) {
-      const prevIndex = currentStoryIndex - 1;
-      setSelectedStory(enhancedStories[prevIndex]);
-      setCurrentStoryIndex(prevIndex);
-      setStoryProgress(0);
+  const navigateStory = (direction: 'prev' | 'next') => {
+    const newIndex = direction === 'prev' 
+      ? Math.max(0, storyIndex - 1)
+      : Math.min(stories.length - 1, storyIndex + 1);
+    
+    const newStory = stories[newIndex];
+    if (newStory) {
+      setSelectedStory(newStory);
+      setStoryIndex(newIndex);
     }
   };
 
-  const refreshStories = () => {
-    queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
-    refetch();
-    toast({
-      title: "Stories Refreshed",
-      description: "Fetching latest stories from the network",
-    });
+  const toggleVideoPlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
   };
 
-  const activeStories = enhancedStories.filter(story => new Date(story.expiresAt) > new Date());
-  const myStories = activeStories.filter(story => story.userId === currentUser.id);
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6">
-      {/* Header with refresh */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-            Network Stories
-          </h2>
-          <p className="text-muted-foreground">
-            {activeStories.length} active stories • {myStories.length} from you
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshStories}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button 
-            onClick={() => setIsCreating(true)}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Story
-          </Button>
-        </div>
-      </div>
+  // Auto-refetch stories periodically
+  useEffect(() => {
+    if (!isOffline) {
+      const interval = setInterval(() => {
+        refetchStories();
+      }, 10000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isOffline, refetchStories]);
 
-      {/* Stories Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {/* Add Story Card */}
-        <Card 
-          className="aspect-[3/4] cursor-pointer hover:scale-105 transition-transform duration-200 border-dashed border-2 border-cyan-500/50 bg-gradient-to-br from-cyan-500/5 to-blue-500/5"
-          onClick={() => setIsCreating(true)}
-        >
-          <CardContent className="p-0 h-full flex flex-col items-center justify-center">
-            <Plus className="w-8 h-8 text-cyan-400 mb-2" />
-            <span className="text-sm font-medium text-cyan-400">Add Story</span>
-          </CardContent>
-        </Card>
+  // Filter active stories (not expired)
+  const activeStories = stories.filter(story => {
+    const now = new Date();
+    return story.expiresAt > now;
+  });
 
-        {/* Stories */}
-        {activeStories.map((story, index) => (
-          <Card 
-            key={story.id}
-            className="aspect-[3/4] cursor-pointer hover:scale-105 transition-transform duration-200 overflow-hidden group relative"
-            onClick={() => handleStoryClick(story, index)}
-          >
-            <CardContent className="p-0 h-full relative">
-              {/* Story Background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-600/80 to-pink-600/80" />
-              
-              {/* Media or Content */}
-              {story.mediaUrl ? (
-                <img 
-                  src={story.mediaUrl} 
-                  alt={story.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <p className="text-white text-center text-sm font-medium line-clamp-4">
-                    {story.content}
+  // Group stories by user
+  const storyGroups = availableUsers.map(user => {
+    const userStories = activeStories.filter(story => story.userId === user.id);
+    return {
+      user,
+      stories: userStories,
+      hasStories: userStories.length > 0,
+      latestStory: userStories.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+    };
+  }).filter(group => group.hasStories);
+
+  if (selectedStory) {
+    return (
+      <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center">
+        <AnimatedBackground />
+        
+        {/* Story Viewer */}
+        <div className="relative w-full max-w-lg h-full max-h-[90vh] bg-gradient-to-br from-purple-900/20 to-blue-900/20 backdrop-blur-xl rounded-lg overflow-hidden">
+          {/* Header */}
+          <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/50 to-transparent">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-10 w-10 border-2 border-cyan-400/50">
+                  <AvatarImage src={selectedStory.user?.avatar} />
+                  <AvatarFallback>{selectedStory.user?.alias?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-white">{selectedStory.user?.alias}</p>
+                  <p className="text-sm text-gray-300">
+                    {Math.round((Date.now() - selectedStory.createdAt.getTime()) / (1000 * 60 * 60))}h ago
                   </p>
                 </div>
-              )}
-
-              {/* Progress Bar */}
-              <div className="absolute top-2 left-2 right-2">
-                <Progress 
-                  value={story.progress || 0} 
-                  className="h-1 bg-white/20"
-                />
               </div>
-
-              {/* User Avatar & Info */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Avatar className="w-6 h-6 border border-white/50">
-                    <AvatarImage src={story.user?.avatar} />
-                    <AvatarFallback className="text-xs bg-cyan-500">
-                      {story.user?.alias.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-white text-xs font-medium">
-                    {story.user?.alias}
-                  </span>
-                </div>
-                <p className="text-white text-xs opacity-90 line-clamp-1">
-                  {story.title}
-                </p>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-white/70 text-xs">{story.timeAgo}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-white/70 text-xs flex items-center">
-                      <Eye className="w-3 h-3 mr-1" />
-                      {story.views}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Story Creation Modal */}
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Story</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                value={newStory.title}
-                onChange={(e) => setNewStory(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="What's your story about?"
-                className="mt-1"
-                maxLength={50}
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Content</label>
-              <Textarea
-                value={newStory.content}
-                onChange={(e) => setNewStory(prev => ({ ...prev, content: e.target.value }))}
-                placeholder="Share your thoughts..."
-                className="mt-1 min-h-[100px]"
-                maxLength={500}
-              />
-            </div>
-
-            {newStory.mediaUrl && (
-              <div className="relative">
-                <img 
-                  src={newStory.mediaUrl} 
-                  alt="Preview" 
-                  className="w-full h-32 object-cover rounded border"
-                />
+              
+              <div className="flex items-center space-x-2">
                 <Button
-                  size="sm"
-                  variant="destructive"
-                  className="absolute top-2 right-2"
-                  onClick={() => setNewStory(prev => ({ ...prev, mediaUrl: null }))}
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedStory(null)}
+                  className="text-white hover:bg-white/20"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="h-5 w-5" />
                 </Button>
               </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Add Image
-              </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden"
-              />
             </div>
-
-            <div className="flex gap-3">
-              <Button
-                onClick={handleCreateStory}
-                disabled={createStoryMutation.isPending}
-                className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-              >
-                {createStoryMutation.isPending ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Publishing...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Publish Story
-                  </>
-                )}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsCreating(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
+            
+            {/* Progress bars */}
+            <div className="flex space-x-1 mt-3">
+              {stories.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-1 flex-1 rounded-full ${
+                    index <= storyIndex ? 'bg-white' : 'bg-white/30'
+                  }`}
+                />
+              ))}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Story Viewer Modal */}
-      {selectedStory && (
-        <Dialog open={!!selectedStory} onOpenChange={() => setSelectedStory(null)}>
-          <DialogContent className="max-w-md p-0 overflow-hidden">
-            <div className="relative aspect-[3/4] bg-black">
-              {/* Progress Bars */}
-              <div className="absolute top-2 left-2 right-2 z-20 flex gap-1">
-                {enhancedStories.map((_, index) => (
-                  <div key={index} className="flex-1 h-1 bg-white/30 rounded">
-                    <div 
-                      className="h-full bg-white rounded transition-all duration-100"
-                      style={{
-                        width: index < currentStoryIndex ? '100%' : 
-                               index === currentStoryIndex ? `${storyProgress}%` : '0%'
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Story Content */}
-              {selectedStory.mediaUrl ? (
-                <img 
-                  src={selectedStory.mediaUrl} 
-                  alt={selectedStory.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center p-6">
-                  <div className="text-center text-white">
-                    <h3 className="text-xl font-bold mb-4">{selectedStory.title}</h3>
-                    <p className="text-lg leading-relaxed">{selectedStory.content}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Navigation */}
-              <button
-                onClick={handlePrevStory}
-                disabled={currentStoryIndex === 0}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white disabled:opacity-50"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleNextStory}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              {/* User Info */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8 border border-white/50">
-                      <AvatarImage src={selectedStory.user?.avatar} />
-                      <AvatarFallback className="bg-cyan-500">
-                        {selectedStory.user?.alias.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{selectedStory.user?.alias}</p>
-                      <p className="text-xs opacity-70">{selectedStory.timeAgo}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+          {/* Media Content */}
+          <div className="relative w-full h-full flex items-center justify-center">
+            {selectedStory.mediaUrl ? (
+              selectedStory.mediaType?.startsWith('video/') ? (
+                <div className="relative w-full h-full">
+                  <video
+                    ref={videoRef}
+                    src={selectedStory.mediaUrl}
+                    className="w-full h-full object-cover"
+                    muted={isMuted}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => navigateStory('next')}
+                  />
+                  
+                  {/* Video controls */}
+                  <div className="absolute bottom-20 left-4 right-4 flex items-center justify-between">
                     <Button
-                      size="sm"
                       variant="ghost"
-                      onClick={() => setAutoPlay(!autoPlay)}
+                      size="icon"
+                      onClick={toggleVideoPlay}
                       className="text-white hover:bg-white/20"
                     >
-                      {autoPlay ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleMute}
+                      className="text-white hover:bg-white/20"
+                    >
+                      {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
                     </Button>
                   </div>
                 </div>
+              ) : (
+                <img
+                  src={selectedStory.mediaUrl}
+                  alt={selectedStory.title}
+                  className="w-full h-full object-cover"
+                />
+              )
+            ) : (
+              <div className="text-center text-white p-8">
+                <h2 className="text-2xl font-bold mb-4">{selectedStory.title}</h2>
+                <p className="text-lg leading-relaxed">{selectedStory.content}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation */}
+          {storyIndex > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigateStory('prev')}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </Button>
+          )}
+          
+          {storyIndex < stories.length - 1 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigateStory('next')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+            >
+              <ChevronRight className="h-8 w-8" />
+            </Button>
+          )}
+
+          {/* Footer with content and actions */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="text-white">
+              <h3 className="font-semibold text-lg mb-2">{selectedStory.title}</h3>
+              <p className="text-sm mb-4">{selectedStory.content}</p>
+              
+              {/* Action buttons */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                    <Heart className="h-5 w-5 mr-1" />
+                    {selectedStory.likes || 0}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                    <MessageCircle className="h-5 w-5 mr-1" />
+                    Reply
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                    <Share className="h-5 w-5 mr-1" />
+                    Share
+                  </Button>
+                </div>
+                
+                <div className="flex items-center space-x-2 text-xs text-gray-300">
+                  <Eye className="h-4 w-4" />
+                  <span>{selectedStory.views || 0} views</span>
+                </div>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full space-y-6">
+      <AnimatedBackground />
+      
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <NeonText className="text-2xl font-bold">Stories</NeonText>
+          <p className="text-muted-foreground">Share moments that disappear in 24 hours</p>
+        </div>
+        
+        {currentUser && (
+          <GlowButton onClick={() => setShowCreateStory(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create Story
+          </GlowButton>
+        )}
+      </div>
+
+      {/* Story Ring */}
+      <div className="flex space-x-4 overflow-x-auto pb-4">
+        {/* Current User's Story Creation */}
+        {currentUser && (
+          <div className="flex-shrink-0">
+            <div
+              onClick={() => setShowCreateStory(true)}
+              className="relative w-16 h-16 rounded-full border-2 border-dashed border-cyan-400/50 hover:border-cyan-400 cursor-pointer flex items-center justify-center transition-all duration-300 hover:scale-105"
+            >
+              <Plus className="h-6 w-6 text-cyan-400" />
+            </div>
+            <p className="text-xs text-center mt-2">Your Story</p>
+          </div>
+        )}
+        
+        {/* User Stories */}
+        {storyGroups.map((group) => (
+          <div key={group.user.id} className="flex-shrink-0">
+            <div
+              onClick={() => handleStoryView(group.latestStory, 0)}
+              className="relative w-16 h-16 rounded-full border-3 border-gradient-to-r from-purple-500 to-cyan-500 p-0.5 cursor-pointer transition-all duration-300 hover:scale-105"
+            >
+              <Avatar className="w-full h-full">
+                <AvatarImage src={group.user.avatar} />
+                <AvatarFallback>{group.user.alias?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              
+              {/* Story count badge */}
+              {group.stories.length > 1 && (
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs bg-cyan-500">
+                  {group.stories.length}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-center mt-2 max-w-16 truncate">
+              {group.user.alias}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent Stories Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {activeStories.slice(0, 6).map((story, index) => (
+          <FuturisticCard
+            key={story.id}
+            className="cursor-pointer transition-all duration-300 hover:scale-105"
+            onClick={() => handleStoryView(story, index)}
+          >
+            <div className="aspect-[4/3] relative">
+              {story.mediaUrl ? (
+                story.mediaType?.startsWith('image/') ? (
+                  <img
+                    src={story.mediaUrl}
+                    alt={story.title}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-lg flex items-center justify-center">
+                    <Play className="h-12 w-12 text-cyan-400" />
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-lg flex items-center justify-center p-4">
+                  <div className="text-center">
+                    <FileText className="h-8 w-8 text-cyan-400 mx-auto mb-2" />
+                    <p className="text-sm font-medium line-clamp-3">{story.title}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-lg" />
+              
+              {/* User info */}
+              <div className="absolute bottom-2 left-2 right-2">
+                <div className="flex items-center space-x-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={story.user?.avatar} />
+                    <AvatarFallback className="text-xs">{story.user?.alias?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-white text-xs font-medium">{story.user?.alias}</span>
+                </div>
+                <p className="text-white text-xs opacity-80 mt-1 line-clamp-2">{story.title}</p>
+              </div>
+              
+              {/* Time indicator */}
+              <div className="absolute top-2 right-2">
+                <Badge variant="secondary" className="bg-black/50 text-white text-xs">
+                  {Math.round((Date.now() - story.createdAt.getTime()) / (1000 * 60 * 60))}h
+                </Badge>
+              </div>
+            </div>
+          </FuturisticCard>
+        ))}
+      </div>
+
+      {/* Create Story Modal */}
+      {showCreateStory && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <FuturisticCard className="w-full max-w-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Create New Story</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setShowCreateStory(false);
+                    setSelectedFile(null);
+                    setMediaPreview(null);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  placeholder="What's your story about?"
+                  value={newStoryTitle}
+                  onChange={(e) => setNewStoryTitle(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Content</label>
+                <Textarea
+                  placeholder="Share your moment..."
+                  value={newStoryContent}
+                  onChange={(e) => setNewStoryContent(e.target.value)}
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Media Upload */}
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                {mediaPreview ? (
+                  <div className="relative">
+                    {selectedFile?.type.startsWith('image/') ? (
+                      <img
+                        src={mediaPreview}
+                        alt="Preview"
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <video
+                        src={mediaPreview}
+                        className="w-full h-48 object-cover rounded-lg"
+                        controls
+                      />
+                    )}
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setMediaPreview(null);
+                      }}
+                      className="absolute top-2 right-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 h-20"
+                    >
+                      <Camera className="h-4 w-4" />
+                      Photo
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 h-20"
+                    >
+                      <Video className="h-4 w-4" />
+                      Video
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 h-20"
+                      disabled
+                    >
+                      <FileText className="h-4 w-4" />
+                      Text Only
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <GlowButton
+                  onClick={handleCreateStory}
+                  disabled={createStoryMutation.isPending || !newStoryTitle.trim() || !newStoryContent.trim()}
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  {createStoryMutation.isPending ? 'Creating...' : 'Share Story'}
+                </GlowButton>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateStory(false)}
+                  className="px-6"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </FuturisticCard>
+        </div>
+      )}
+      
+      {/* Empty State */}
+      {activeStories.length === 0 && !isOffline && (
+        <div className="text-center py-12">
+          <Sparkles className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Active Stories</h3>
+          <p className="text-muted-foreground mb-4">
+            Be the first to share a moment with your mesh network!
+          </p>
+          {currentUser && (
+            <GlowButton onClick={() => setShowCreateStory(true)}>
+              Create Your First Story
+            </GlowButton>
+          )}
+        </div>
       )}
     </div>
   );

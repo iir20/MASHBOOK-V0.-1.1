@@ -26,7 +26,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wss = new WebSocketServer({ 
     server: httpServer, 
     path: '/ws',
-    perMessageDeflate: false
+    perMessageDeflate: false,
+    verifyClient: (info) => {
+      console.log(`WebSocket connection attempt from ${info.origin || 'unknown origin'}`);
+      return true; // Allow all connections for now
+    }
   });
   
   // User routes
