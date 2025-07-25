@@ -19,10 +19,18 @@ import {
   WifiOff,
   LogOut,
   Eye,
-  Edit
+  Edit,
+  Orbit,
+  Brain,
+  Wallet,
+  Globe
 } from 'lucide-react';
 
 import { EnhancedStorySystem } from './enhanced-story-system';
+import { Futuristic3DOrbitalStorySystem } from './futuristic-3d-orbital-story-system';
+import { AIShadowCloneSystem } from './ai-shadow-clone-system';
+import { Web3BlockchainIntegration } from './web3-blockchain-integration';
+import { ARWorldDropSystem } from './ar-world-drop-system';
 import { EnhancedRealTimeMessaging } from './enhanced-real-time-messaging';
 import { EnhancedConnectivitySystem } from './enhanced-connectivity-system';
 import { EnhancedAuthRegistration } from './enhanced-auth-registration';
@@ -43,7 +51,7 @@ interface WSState {
 
 export function EnhancedMainApp() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [activeTab, setActiveTab] = useState<'stories' | 'messages' | 'users' | 'network' | 'mesh' | 'profile' | 'settings'>('stories');
+  const [activeTab, setActiveTab] = useState<'stories' | '3d-orbital' | 'ai-clone' | 'web3' | 'ar-world' | 'messages' | 'users' | 'network' | 'mesh' | 'profile' | 'settings'>('3d-orbital');
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -286,46 +294,82 @@ export function EnhancedMainApp() {
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="flex-1 flex flex-col">
           {/* Enhanced Tab Navigation */}
           <div className="border-b border-border bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
-            <TabsList className="w-full justify-start bg-transparent h-14 px-4">
-              <TabsTrigger value="stories" className="flex items-center gap-2 px-6 py-3">
+            <TabsList className="w-full justify-start bg-gradient-to-r from-purple-900/50 to-pink-900/50 backdrop-blur-sm border border-purple-500/30 h-14 px-4">
+              <TabsTrigger value="3d-orbital" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600">
+                <Orbit className="w-4 h-4" />
+                <span className="hidden sm:inline">3D Orbital</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai-clone" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600">
+                <Brain className="w-4 h-4" />
+                <span className="hidden sm:inline">AI Clone</span>
+              </TabsTrigger>
+              <TabsTrigger value="web3" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-blue-600">
+                <Wallet className="w-4 h-4" />
+                <span className="hidden sm:inline">Web3</span>
+              </TabsTrigger>
+              <TabsTrigger value="ar-world" className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-cyan-600">
+                <Globe className="w-4 h-4" />
+                <span className="hidden sm:inline">AR World</span>
+              </TabsTrigger>
+              <TabsTrigger value="stories" className="flex items-center gap-2 px-4 py-3">
                 <Sparkles className="w-4 h-4" />
-                <span>Stories</span>
+                <span className="hidden sm:inline">Stories</span>
               </TabsTrigger>
-              <TabsTrigger value="messages" className="flex items-center gap-2 px-6 py-3">
+              <TabsTrigger value="messages" className="flex items-center gap-2 px-4 py-3">
                 <MessageSquare className="w-4 h-4" />
-                <span>Messages</span>
+                <span className="hidden sm:inline">Messages</span>
               </TabsTrigger>
-              <TabsTrigger value="users" className="flex items-center gap-2 px-6 py-3">
+              <TabsTrigger value="users" className="flex items-center gap-2 px-4 py-3">
                 <Users className="w-4 h-4" />
-                <span>Network</span>
+                <span className="hidden sm:inline">Network</span>
               </TabsTrigger>
-              <TabsTrigger value="mesh" className="flex items-center gap-2 px-6 py-3">
+              <TabsTrigger value="mesh" className="flex items-center gap-2 px-4 py-3">
                 <Network className="w-4 h-4" />
-                <span>Mesh</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2 px-6 py-3">
-                <Settings className="w-4 h-4" />
-                <span>Settings</span>
-              </TabsTrigger>
-              <TabsTrigger value="network" className="flex items-center gap-2 px-6 py-3">
-                <Wifi className="w-4 h-4" />
-                <span>Connectivity</span>
-              </TabsTrigger>
-              <TabsTrigger value="profile" className="flex items-center gap-2 px-6 py-3">
-                <UserIcon className="w-4 h-4" />
-                <span>Profile</span>
+                <span className="hidden sm:inline">Mesh</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* Tab Content */}
           <div className="flex-1 overflow-hidden">
+            {/* Futuristic Features */}
+            <TabsContent value="3d-orbital" className="h-full m-0">
+              <Futuristic3DOrbitalStorySystem
+                currentUser={currentUser}
+                availableUsers={filteredUsers}
+                isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            <TabsContent value="ai-clone" className="h-full m-0">
+              <AIShadowCloneSystem
+                currentUser={currentUser}
+                onUserUpdate={handleUserUpdate}
+                isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            <TabsContent value="web3" className="h-full m-0">
+              <Web3BlockchainIntegration
+                currentUser={currentUser}
+                onUserUpdate={handleUserUpdate}
+                isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            <TabsContent value="ar-world" className="h-full m-0">
+              <ARWorldDropSystem
+                currentUser={currentUser}
+                availableUsers={filteredUsers}
+                isOffline={isOfflineMode}
+              />
+            </TabsContent>
+
+            {/* Existing Features */}
             <TabsContent value="stories" className="h-full m-0">
               <EnhancedStorySystem
                 currentUser={currentUser}
                 availableUsers={filteredUsers}
-                onMessageUser={handleSelectUser}
-                onUserProfile={handleViewProfile}
                 isOffline={isOfflineMode}
               />
             </TabsContent>
@@ -518,9 +562,10 @@ export function EnhancedMainApp() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <EnhancedProfileEditor
-              user={currentUser}
+              currentUser={currentUser}
               onUserUpdate={handleUserUpdate}
               onClose={() => setShowProfileEditor(false)}
+              isOffline={isOfflineMode}
             />
           </div>
         </div>
@@ -536,8 +581,8 @@ export function EnhancedMainApp() {
             </div>
             <span>Quality: {wsState.connectionQuality}</span>
             <span>{filteredUsers.length + 1} users online</span>
-            <Badge variant="outline" className="text-xs">
-              Meshbook v2.0
+            <Badge variant="outline" className="text-xs bg-gradient-to-r from-purple-600 to-pink-600 border-purple-500">
+              Meshbook v3.0 Next-Gen
             </Badge>
           </div>
           <div className="flex items-center space-x-3">

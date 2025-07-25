@@ -2,7 +2,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { OptimizedMainApp } from "./components/optimized-main-app";
+import { EnhancedMainApp } from "./components/enhanced-main-app";
 
 function App() {
   console.log('App: Starting Meshbook application');
@@ -12,7 +12,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          <OptimizedMainApp />
+          <EnhancedMainApp />
         </TooltipProvider>
       </QueryClientProvider>
     );
