@@ -33,16 +33,14 @@ import {
 } from 'lucide-react';
 
 import { UnifiedSettingsSystem } from './unified-settings-system';
-import { EnhancedStorySystemV2 } from './enhanced-story-system-v2';
-import { EnhancedStorySystemV3 } from './enhanced-story-system-v3';
+import { EnhancedStorySystemV4 } from './enhanced-story-system-v4';
 import { EnhancedMessagingSystemV2 } from './enhanced-messaging-system-v2';
 import { EnhancedP2PMessaging } from './enhanced-p2p-messaging';
-import { EnhancedVaultSystem } from './enhanced-vault-system';
-import { EnhancedMeshMapV2 } from './enhanced-mesh-map-v2';
+import { EnhancedVaultSystemV2 } from './enhanced-vault-system-v2';
 import { EnhancedMeshMapV3 } from './enhanced-mesh-map-v3';
 import { EnhancedAuthShowcase } from './enhanced-auth-showcase';
-import { EnhancedNodeSystemV2 } from './enhanced-node-system-v2';
-import { EnhancedNodeSystemV3 } from './enhanced-node-system-v3';
+import { EnhancedNodeSystemV4 } from './enhanced-node-system-v4';
+import { EnhancedProfileEditor } from './enhanced-profile-editor';
 import { ThemeProvider, FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
 
 type UserType = User;
@@ -443,7 +441,7 @@ export function OptimizedMainApp() {
               </div>
 
               <TabsContent value="stories">
-                <EnhancedStorySystemV3
+                <EnhancedStorySystemV4
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   isOffline={isOfflineMode}
@@ -464,7 +462,7 @@ export function OptimizedMainApp() {
               {/* Removed old users and network tabs - content integrated into other components */}
 
               <TabsContent value="vault">
-                <EnhancedVaultSystem
+                <EnhancedVaultSystemV2
                   currentUser={currentUser}
                   isOffline={isOfflineMode}
                 />
@@ -481,7 +479,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="node">
-                <EnhancedNodeSystemV3
+                <EnhancedNodeSystemV4
                   currentUser={currentUser}
                   isOffline={isOfflineMode}
                   wsState={wsState}
@@ -578,6 +576,18 @@ export function OptimizedMainApp() {
                     </div>
                   </div>
                 </FuturisticCard>
+                
+                {/* Enhanced Profile Editor */}
+                {showProfile && currentUser && (
+                  <div className="mt-6">
+                    <EnhancedProfileEditor
+                      currentUser={currentUser}
+                      onUserUpdate={handleUserUpdate}
+                      onClose={() => setShowProfile(false)}
+                      isOffline={isOfflineMode}
+                    />
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="settings">
