@@ -1,4 +1,4 @@
-# Replit.md - Decentralized Mesh Network Chat Application
+Decentralized Mesh Network Chat Application
 
 ## Overview
 
