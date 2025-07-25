@@ -40,7 +40,7 @@ import {
   Signal,
   Battery,
   HardDrive,
-  Memory,
+  Database,
   Thermometer,
   CheckCircle,
   AlertTriangle,
@@ -351,7 +351,7 @@ export function ImprovedNodeSystem({ currentUser, availableUsers, isOffline }: I
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label className="flex items-center space-x-1">
-                      <Memory className="w-3 h-3" />
+                      <Database className="w-3 h-3" />
                       <span>Memory Usage</span>
                     </Label>
                     <span className="text-sm text-gray-500">{nodeMetrics.memoryUsage.toFixed(1)}%</span>

@@ -45,7 +45,7 @@ function App() {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <SimpleWorkingApp />
+          <EnhancedMainAppV2 />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

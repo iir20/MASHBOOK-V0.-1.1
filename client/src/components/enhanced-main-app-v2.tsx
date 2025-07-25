@@ -243,6 +243,16 @@ export function EnhancedMainAppV2() {
     });
   };
 
+  // Handle user update
+  const handleUserUpdate = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem('meshbook-user', JSON.stringify(updatedUser));
+    toast({
+      title: "Profile updated",
+      description: "Your profile has been updated successfully.",
+    });
+  };
+
   // Handle successful authentication
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
@@ -319,7 +329,7 @@ export function EnhancedMainAppV2() {
         {activeTab === 'ai-clone' && (
           <AIShadowCloneSystem
             currentUser={currentUser}
-            availableUsers={availableUsers as User[]}
+            onUserUpdate={handleUserUpdate}
             isOffline={isOfflineMode}
           />
         )}
@@ -328,6 +338,7 @@ export function EnhancedMainAppV2() {
         {activeTab === 'web3' && (
           <Web3BlockchainIntegration
             currentUser={currentUser}
+            onUserUpdate={handleUserUpdate}
             isOffline={isOfflineMode}
           />
         )}
@@ -345,21 +356,33 @@ export function EnhancedMainAppV2() {
         {activeTab === 'messages' && (
           <EnhancedRealTimeMessaging
             currentUser={currentUser}
-            selectedUser={selectedUser}
             availableUsers={availableUsers as User[]}
             wsState={wsState}
-            onUserSelect={handleUserSelect}
+            onUserProfile={handleUserSelect}
             isOffline={isOfflineMode}
           />
         )}
 
         {/* Users List */}
         {activeTab === 'users' && (
-          <CompleteUserProfile
-            currentUser={currentUser}
-            onUserSelect={handleUserSelect}
-            isOffline={isOfflineMode}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {availableUsers.map((user) => (
+              <div key={user.id} 
+                   className="p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg cursor-pointer hover:bg-white/20 transition-colors"
+                   onClick={() => handleUserSelect(user)}>
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white font-bold">
+                    {user.alias.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">{user.alias}</h3>
+                    <p className="text-gray-300 text-sm">{user.profile}</p>
+                    <p className="text-xs text-green-400">{user.isOnline ? 'Online' : 'Offline'}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Mesh Radar Map */}
@@ -367,7 +390,6 @@ export function EnhancedMainAppV2() {
           <EnhancedRadarMeshMap
             currentUser={currentUser}
             availableUsers={availableUsers as User[]}
-            onUserSelect={handleUserSelect}
             isOffline={isOfflineMode}
           />
         )}
@@ -409,19 +431,21 @@ export function EnhancedMainAppV2() {
         )}
 
         {/* Profile Management */}
-        {activeTab === 'profile' && (
+        {activeTab === 'profile' && currentUser && (
           <CompleteUserProfile
+            user={currentUser}
             currentUser={currentUser}
-            onUserSelect={handleUserSelect}
-            isOffline={isOfflineMode}
+            isOpen={true}
+            onClose={() => setActiveTab('3d-orbital')}
           />
         )}
 
         {/* Settings Panel */}
         {activeTab === 'settings' && (
           <EnhancedSettingsPanel
-            onOfflineMode={handleOfflineMode}
-            isOffline={isOfflineMode}
+            isOfflineMode={isOfflineMode}
+            onOfflineModeChange={handleOfflineMode}
+            onLogout={handleUserLogout}
           />
         )}
       </div>
@@ -429,9 +453,10 @@ export function EnhancedMainAppV2() {
       {/* User Profile Modal */}
       {showUserProfile && selectedUser && (
         <CompleteUserProfile
+          user={selectedUser}
           currentUser={currentUser}
-          onUserSelect={() => setShowUserProfile(false)}
-          isOffline={isOfflineMode}
+          isOpen={showUserProfile}
+          onClose={() => setShowUserProfile(false)}
         />
       )}
 
