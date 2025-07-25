@@ -202,7 +202,7 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
     // Mark story as viewed (if implemented in backend)
     if (story.userId !== currentUser?.id) {
       // Increment view count
-      apiRequest(`/api/stories/${story.id}/view`, 'POST').catch(console.error);
+      apiRequest(`/api/stories/${story.id}/view`, { method: 'POST' }).catch(console.error);
     }
   };
 
@@ -267,7 +267,9 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
   if (selectedStory) {
     return (
       <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center">
-        <AnimatedBackground />
+        <AnimatedBackground>
+          <div></div>
+        </AnimatedBackground>
         
         {/* Story Viewer */}
         <div className="relative w-full max-w-lg h-full max-h-[90vh] bg-gradient-to-br from-purple-900/20 to-blue-900/20 backdrop-blur-xl rounded-lg overflow-hidden">
@@ -423,7 +425,9 @@ export function EnhancedStorySystem({ currentUser, availableUsers, isOffline }: 
 
   return (
     <div className="h-full space-y-6">
-      <AnimatedBackground />
+      <AnimatedBackground>
+        <div></div>
+      </AnimatedBackground>
       
       {/* Header */}
       <div className="flex items-center justify-between">

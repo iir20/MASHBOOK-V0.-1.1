@@ -46,7 +46,6 @@ import {
 interface UnifiedSettingsProps {
   currentUser: User | null;
   onUserUpdate: (user: User) => void;
-  onSettingsChange: (settings: any) => void;
   isOffline: boolean;
 }
 
@@ -130,7 +129,7 @@ const defaultSettings: AppSettings = {
   },
 };
 
-export function UnifiedSettingsSystem({ currentUser, onUserUpdate, onSettingsChange, isOffline }: UnifiedSettingsProps) {
+export function UnifiedSettingsSystem({ currentUser, onUserUpdate, isOffline }: UnifiedSettingsProps) {
   const [activeSection, setActiveSection] = useState<'account' | 'privacy' | 'security' | 'notifications' | 'vault' | 'node' | 'theme' | 'connectivity'>('account');
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
@@ -147,11 +146,10 @@ export function UnifiedSettingsSystem({ currentUser, onUserUpdate, onSettingsCha
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Save settings to localStorage and emit changes
+  // Save settings to localStorage
   const saveSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
     localStorage.setItem('meshbook-settings', JSON.stringify(newSettings));
-    onSettingsChange(newSettings);
     setIsDirty(false);
     
     toast({

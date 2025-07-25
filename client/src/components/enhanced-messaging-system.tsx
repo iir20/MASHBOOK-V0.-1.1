@@ -296,21 +296,28 @@ export function EnhancedMessagingSystem({
         (msg.fromUserId === currentUser?.id && msg.toUserId === userId) ||
         (msg.fromUserId === userId && msg.toUserId === currentUser?.id)
       );
-      return userMessages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+      return userMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
     }
     
     // Would need to implement API endpoint for last messages
     return null;
   };
 
-  const formatMessageTime = (timestamp: Date) => {
+  const formatMessageTime = (timestamp: Date | string | number) => {
     const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
+    const time = new Date(timestamp);
+    
+    // Check if valid date
+    if (isNaN(time.getTime())) {
+      return 'Unknown time';
+    }
+    
+    const diff = now.getTime() - time.getTime();
     
     if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return timestamp.toLocaleDateString();
+    return time.toLocaleDateString();
   };
 
   if (!selectedUser) {
@@ -595,7 +602,7 @@ export function EnhancedMessagingSystem({
             <GlowButton
               onClick={handleSendMessage}
               disabled={sendMessageMutation.isPending || (!messageContent.trim() && !selectedFile)}
-              size="icon"
+              className="h-10 w-10"
             >
               <Send className="h-4 w-4" />
             </GlowButton>

@@ -495,8 +495,6 @@ export function OptimizedMainApp() {
                 <UnifiedSettingsSystem
                   currentUser={currentUser}
                   onUserUpdate={handleUserUpdate}
-                  settings={appSettings}
-                  onSettingsChange={setAppSettings}
                   isOffline={isOfflineMode}
                 />
               </TabsContent>
