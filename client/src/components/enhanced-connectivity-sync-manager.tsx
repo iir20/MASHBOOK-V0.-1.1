@@ -117,7 +117,7 @@ export function EnhancedConnectivitySyncManager({
           testWs.onerror = () => resolve(false);
           setTimeout(() => resolve(false), 2000) as any;
         });
-        newHealth.websocket = await testWs as boolean;
+        newHealth.websocket = await wsTest as boolean;
         if (newHealth.websocket) healthScore += 25;
       } catch (error) {
         newHealth.websocket = false;

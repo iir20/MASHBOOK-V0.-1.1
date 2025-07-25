@@ -106,6 +106,8 @@ export function OptimizedMainApp() {
           console.log('Setting first user as current:', firstUser);
           setCurrentUser(firstUser);
           localStorage.setItem('meshbook-user', JSON.stringify(firstUser));
+        } else {
+          console.log('No users found, application may need registration');
         }
       })
       .catch(error => {
@@ -516,7 +518,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="profile">
-                <FuturisticCard className="p-6">
+                <Card className="p-6">
                   <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                     <UserIcon className="w-5 h-5" />
                     User Profile
@@ -593,10 +595,10 @@ export function OptimizedMainApp() {
                       </div>
                       
                       <div className="flex space-x-3">
-                        <GlowButton onClick={() => setShowProfile(true)}>
+                        <Button onClick={() => setShowProfile(true)} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
                           <Edit className="w-4 h-4 mr-2" />
                           Edit Profile
-                        </GlowButton>
+                        </Button>
                         <Button variant="outline" onClick={() => setActiveTab('settings')}>
                           <Settings className="w-4 h-4 mr-2" />
                           Settings
@@ -604,7 +606,7 @@ export function OptimizedMainApp() {
                       </div>
                     </div>
                   </div>
-                </FuturisticCard>
+                </Card>
                 
                 {/* Enhanced Profile Editor */}
                 {showProfile && currentUser && (
