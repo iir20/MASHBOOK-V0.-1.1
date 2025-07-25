@@ -13,22 +13,31 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: List root files
+      run: ls -la
+
+    - name: List subfolder files
+      run: ls -la MASHBOOK-V0.-1.1
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 18
 
-    - name: Install dependencies
+    - name: Install dependencies inside subfolder
+      working-directory: MASHBOOK-V0.-1.1
       run: npm install
 
-    - name: Install grunt locally
+    - name: Install grunt locally inside subfolder
+      working-directory: MASHBOOK-V0.-1.1
       run: npm install grunt --save-dev
 
-    - name: Build with grunt
+    - name: Run grunt build inside subfolder
+      working-directory: MASHBOOK-V0.-1.1
       run: grunt --gruntfile gruntfile.cjs
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist
+        publish_dir: ./MASHBOOK-V0.-1.1/dist
