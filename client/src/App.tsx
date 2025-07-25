@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { EnhancedMainAppV2 } from "./components/enhanced-main-app-v2";
 import { MinimalMainApp } from "./components/minimal-main-app";
 import { DebugTest } from "./components/debug-test";
+import { SimpleWorkingApp } from "./components/simple-working-app";
 
 function App() {
   console.log('App: Starting Meshbook application');
@@ -13,6 +14,7 @@ function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const isDebugMode = urlParams.get('debug') === 'true';
   const isMinimalMode = urlParams.get('minimal') === 'true';
+  const isSimpleMode = urlParams.get('simple') === 'true';
   
   if (isDebugMode) {
     return <DebugTest />;
@@ -28,16 +30,23 @@ function App() {
     );
   }
 
+  if (isSimpleMode) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <SimpleWorkingApp />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
   try {
     console.log('App: Attempting to render main components');
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <div style={{ background: '#000', minHeight: '100vh', color: '#fff', padding: '20px' }}>
-            <h1>Meshbook Loading...</h1>
-            <EnhancedMainAppV2 />
-            <Toaster />
-          </div>
+          <SimpleWorkingApp />
+          <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
     );
