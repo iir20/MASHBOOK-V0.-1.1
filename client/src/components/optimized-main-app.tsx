@@ -35,10 +35,13 @@ import {
 import { UnifiedSettingsSystem } from './unified-settings-system';
 import { EnhancedStorySystemV2 } from './enhanced-story-system-v2';
 import { EnhancedMessagingSystemV2 } from './enhanced-messaging-system-v2';
+import { EnhancedP2PMessaging } from './enhanced-p2p-messaging';
 import { EnhancedVaultSystem } from './enhanced-vault-system';
 import { EnhancedMeshMapV2 } from './enhanced-mesh-map-v2';
+import { EnhancedMeshMapV3 } from './enhanced-mesh-map-v3';
 import { EnhancedAuthShowcase } from './enhanced-auth-showcase';
 import { EnhancedNodeSystemV2 } from './enhanced-node-system-v2';
+import { EnhancedNodeSystemV3 } from './enhanced-node-system-v3';
 import { ThemeProvider, FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './modern-futuristic-theme';
 
 type UserType = User;
@@ -323,36 +326,120 @@ export function OptimizedMainApp() {
           {/* Main Content */}
           <main className="container mx-auto px-4 py-6">
             <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
-              <TabsList className="grid w-full grid-cols-7 mb-6">
-                <TabsTrigger value="stories" className="flex items-center gap-2">
+              {/* Desktop Menu Bar */}
+              <TabsList className="hidden md:grid w-full grid-cols-7 mb-6 bg-black/20 backdrop-blur-lg border border-blue-500/30 rounded-xl p-2">
+                <TabsTrigger value="stories" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <Sparkles className="w-4 h-4" />
-                  Stories
+                  <span>Stories</span>
                 </TabsTrigger>
-                <TabsTrigger value="messages" className="flex items-center gap-2">
+                <TabsTrigger value="messages" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <MessageSquare className="w-4 h-4" />
-                  Messages
+                  <span>Messages</span>
                 </TabsTrigger>
-                <TabsTrigger value="vault" className="flex items-center gap-2">
+                <TabsTrigger value="vault" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <Lock className="w-4 h-4" />
-                  Vault
+                  <span>Vault</span>
                 </TabsTrigger>
-                <TabsTrigger value="mesh" className="flex items-center gap-2">
+                <TabsTrigger value="mesh" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <Network className="w-4 h-4" />
-                  Mesh
+                  <span>Mesh</span>
                 </TabsTrigger>
-                <TabsTrigger value="node" className="flex items-center gap-2">
+                <TabsTrigger value="node" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <Radio className="w-4 h-4" />
-                  Node
+                  <span>Node</span>
                 </TabsTrigger>
-                <TabsTrigger value="profile" className="flex items-center gap-2">
+                <TabsTrigger value="profile" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <UserIcon className="w-4 h-4" />
-                  Profile
+                  <span>Profile</span>
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-2">
+                <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-purple-500/30 data-[state=active]:text-blue-100 hover:bg-blue-500/10 transition-all duration-300 rounded-lg px-4 py-3">
                   <Settings className="w-4 h-4" />
-                  Settings
+                  <span>Settings</span>
                 </TabsTrigger>
               </TabsList>
+              
+              {/* Mobile Menu Bar */}
+              <div className="md:hidden mb-6">
+                <div className="flex overflow-x-auto scrollbar-hide bg-black/20 backdrop-blur-lg border border-blue-500/30 rounded-xl p-2 space-x-2">
+                  <button
+                    onClick={() => setActiveTab('stories')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'stories' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-sm">Stories</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('messages')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'messages' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="text-sm">Messages</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('vault')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'vault' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span className="text-sm">Vault</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('mesh')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'mesh' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <Network className="w-4 h-4" />
+                    <span className="text-sm">Mesh</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('node')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'node' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <Radio className="w-4 h-4" />
+                    <span className="text-sm">Node</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'profile' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <UserIcon className="w-4 h-4" />
+                    <span className="text-sm">Profile</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg min-w-fit transition-all duration-300 ${
+                      activeTab === 'settings' 
+                        ? 'bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-100' 
+                        : 'hover:bg-blue-500/10 text-gray-300'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="text-sm">Settings</span>
+                  </button>
+                </div>
+              </div>
 
               <TabsContent value="stories">
                 <EnhancedStorySystemV2
@@ -363,7 +450,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="messages">
-                <EnhancedMessagingSystemV2
+                <EnhancedP2PMessaging
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   selectedUser={selectedUser}
@@ -383,7 +470,7 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="mesh">
-                <EnhancedMeshMapV2
+                <EnhancedMeshMapV3
                   currentUser={currentUser}
                   availableUsers={realAvailableUsers}
                   onUserSelect={setSelectedUser}
@@ -393,9 +480,10 @@ export function OptimizedMainApp() {
               </TabsContent>
 
               <TabsContent value="node">
-                <EnhancedNodeSystemV2
+                <EnhancedNodeSystemV3
                   currentUser={currentUser}
                   isOffline={isOfflineMode}
+                  wsState={wsState}
                 />
               </TabsContent>
 
