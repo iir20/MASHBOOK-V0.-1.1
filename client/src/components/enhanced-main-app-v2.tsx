@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { usePersistentOfflineMode } from '@/hooks/use-persistent-offline-mode';
+import { offlineStorage } from '@/lib/offline-storage';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@shared/schema';
@@ -22,6 +24,7 @@ import { Web3BlockchainIntegration } from './web3-blockchain-integration';
 import { ARWorldDropSystem } from './ar-world-drop-system';
 import { QuantumMeshRoutingSystem } from './quantum-mesh-routing-system';
 import { NeuralNetworkVisualization } from './neural-network-visualization';
+import { EnhancedVaultSystemV3 } from './enhanced-vault-system-v3';
 
 interface WSState {
   isConnected: boolean;
@@ -35,14 +38,14 @@ export function EnhancedMainAppV2() {
   const [activeTab, setActiveTab] = useState<string>('3d-orbital');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const [isOfflineMode, setIsOfflineMode] = useState(() => {
-    try {
-      const saved = localStorage.getItem('meshbook-offline-mode');
-      return saved ? JSON.parse(saved) : false;
-    } catch {
-      return false;
-    }
-  });
+  
+  // Use persistent offline mode hook
+  const { 
+    isOfflineMode, 
+    isEffectivelyOffline, 
+    toggleOfflineMode, 
+    isInitialized 
+  } = usePersistentOfflineMode();
   
   const [wsState, setWsState] = useState<WSState>({
     isConnected: false,
@@ -70,21 +73,30 @@ export function EnhancedMainAppV2() {
     }
   }, []);
 
-  // Persist offline mode setting
+  // Load user from offline storage
   useEffect(() => {
-    try {
-      localStorage.setItem('meshbook-offline-mode', JSON.stringify(isOfflineMode));
-    } catch (error) {
-      console.warn('Failed to save offline mode setting:', error);
+    if (isInitialized) {
+      const offlineUser = offlineStorage.getUser();
+      if (offlineUser && !currentUser) {
+        setCurrentUser(offlineUser);
+      }
     }
-  }, [isOfflineMode]);
+  }, [isInitialized, currentUser]);
 
-  // Fetch available users
+  // Fetch available users with offline support
   const { data: availableUsers = [], isLoading: usersLoading, error: usersError } = useQuery<User[]>({
     queryKey: ['/api/users'],
-    enabled: !!currentUser && !isOfflineMode,
+    enabled: !!currentUser && !isEffectivelyOffline,
     refetchInterval: 10000,
-    retry: 3
+    retry: 3,
+    initialData: () => {
+      if (isEffectivelyOffline) {
+        // Load users from offline storage
+        const offlineData = offlineStorage.getOfflineData();
+        return offlineData.connections || [];
+      }
+      return [];
+    }
   });
 
   // Handle users fetch error
@@ -247,6 +259,10 @@ export function EnhancedMainAppV2() {
   const handleUserUpdate = (updatedUser: User) => {
     setCurrentUser(updatedUser);
     localStorage.setItem('meshbook-user', JSON.stringify(updatedUser));
+    
+    // Save to offline storage
+    offlineStorage.saveUser(updatedUser);
+    
     toast({
       title: "Profile updated",
       description: "Your profile has been updated successfully.",
@@ -257,6 +273,10 @@ export function EnhancedMainAppV2() {
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('meshbook-user', JSON.stringify(user));
+    
+    // Save to offline storage
+    offlineStorage.saveUser(user);
+    
     setActiveTab('3d-orbital');
     
     toast({
@@ -273,7 +293,7 @@ export function EnhancedMainAppV2() {
 
   // Handle offline mode toggle
   const handleOfflineMode = (enabled: boolean) => {
-    setIsOfflineMode(enabled);
+    toggleOfflineMode(enabled);
     
     if (enabled) {
       if (wsRef.current) {
@@ -418,6 +438,14 @@ export function EnhancedMainAppV2() {
           <NeuralNetworkVisualization
             currentUser={currentUser}
             isOffline={isOfflineMode}
+          />
+        )}
+
+        {/* Secure Vault System */}
+        {activeTab === 'vault' && (
+          <EnhancedVaultSystemV3
+            currentUser={currentUser}
+            isOffline={isEffectivelyOffline}
           />
         )}
 

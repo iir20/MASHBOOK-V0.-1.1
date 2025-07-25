@@ -66,11 +66,20 @@ export function Futuristic3DOrbitalStorySystem({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch stories with enhanced metadata
+  // Fetch stories with offline support
   const { data: stories = [], refetch: refetchStories } = useQuery<Story[]>({
     queryKey: ['/api/stories'],
     enabled: !isOffline,
     refetchInterval: 30000,
+    initialData: isOffline ? (() => {
+      // Load from offline storage
+      try {
+        const { offlineStorage } = require('@/lib/offline-storage');
+        return offlineStorage.getStories();
+      } catch {
+        return [];
+      }
+    })() : []
   });
 
   // Initialize 3D orbital positions for stories
@@ -198,14 +207,56 @@ export function Futuristic3DOrbitalStorySystem({
     }
   };
 
-  // Create story mutation
+  // Create story mutation with offline support
   const createStoryMutation = useMutation({
-    mutationFn: async (storyData: InsertStory) => {
-      const response = await apiRequest('/api/stories', {
-        method: 'POST',
-        body: storyData,
-      });
-      return response;
+    mutationFn: async (storyData: InsertStory & { mediaFile?: File }) => {
+      if (isOffline) {
+        // Save to offline storage
+        const story = {
+          id: Date.now(),
+          userId: currentUser?.id || 0,
+          title: storyData.title,
+          content: storyData.content,
+          mediaUrl: storyData.mediaUrl || null,
+          expiresAt: storyData.expiresAt,
+          createdAt: new Date(),
+          user: currentUser,
+          views: 0,
+          likes: 0,
+          isLiked: false,
+          orbitalPosition: {
+            x: Math.random() * 400 - 200,
+            y: Math.random() * 400 - 200,
+            z: Math.random() * 200 - 100,
+            radius: 100 + Math.random() * 100,
+            speed: 0.5 + Math.random() * 1.5
+          }
+        };
+        
+        const { offlineStorage } = await import('@/lib/offline-storage');
+        offlineStorage.addStory(story);
+        return story;
+      }
+      
+      // Online mode - send to server
+      if (storyData.mediaFile) {
+        const formData = new FormData();
+        formData.append('title', storyData.title);
+        formData.append('content', storyData.content);
+        formData.append('userId', String(storyData.userId));
+        formData.append('expiresAt', storyData.expiresAt.toISOString());
+        formData.append('mediaFile', storyData.mediaFile);
+        
+        return fetch('/api/stories', {
+          method: 'POST',
+          body: formData,
+        }).then(res => res.json());
+      } else {
+        return apiRequest('/api/stories', {
+          method: 'POST',
+          body: storyData,
+        });
+      }
     },
     onSuccess: () => {
       toast({
