@@ -18,7 +18,7 @@ import { FuturisticCard, GlowButton, NeonText, AnimatedBackground } from './mode
 
 import {
   Sparkles, Plus, Clock, Eye, Heart, Share2, Camera, Video, FileText, Upload, 
-  Play, Pause, Volume2, VolumeX, Maximize, Grid3X3, List, Timeline, Search, 
+  Play, Pause, Volume2, VolumeX, Maximize, Grid3X3, List, GitBranch, Search, 
   Filter, TrendingUp, Zap, Star, Users, Globe, Lock, AlertCircle, CheckCircle,
   X, Loader2, Download, MoreHorizontal, Send
 } from 'lucide-react';
@@ -171,10 +171,7 @@ export function EnhancedStorySystemV4({ currentUser, availableUsers, isOffline }
 
         const response = await apiRequest('/api/stories', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(finalStoryData),
+          body: finalStoryData,
         });
 
         setUploadProgress(100);
@@ -354,7 +351,7 @@ export function EnhancedStorySystemV4({ currentUser, availableUsers, isOffline }
                 size="sm"
                 onClick={() => setViewMode('timeline')}
               >
-                <Timeline className="w-4 h-4" />
+                <GitBranch className="w-4 h-4" />
               </Button>
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
