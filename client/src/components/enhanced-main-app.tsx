@@ -97,7 +97,7 @@ export function EnhancedMainApp() {
 
     const connect = () => {
       try {
-        const wsUrl = `ws://${window.location.host}/ws`;
+        const wsUrl = `ws://${window.location.host}/api/ws?userId=${currentUser.id}`;
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
